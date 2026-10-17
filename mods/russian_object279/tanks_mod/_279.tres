@@ -1,0 +1,110 @@
+[gd_resource type="Resource" script_class="TankInfoMain" format=3 uid="uid://rv7wwacd8a1v"]
+
+[ext_resource type="Script" uid="uid://ik8cl56b1kn8" path="res://assets/data/tank_info/module_engine.gd" id="1_uuo85"]
+[ext_resource type="Script" uid="uid://cwn7pqhusf5ai" path="res://assets/data/tank_info/module_gun.gd" id="2_ft5fj"]
+[ext_resource type="Script" uid="uid://db3udi6hv6vml" path="res://assets/data/tank_info/burst_info.gd" id="3_wptkh"]
+[ext_resource type="Script" uid="uid://bmjo6p14kkiqq" path="res://assets/data/tank_info/shell_info.gd" id="4_s66s1"]
+[ext_resource type="Script" uid="uid://dqiabdd87qy5b" path="res://assets/data/tank_info/tank_info.gd" id="5_w50ep"]
+[ext_resource type="Script" uid="uid://c47xj1fnl8h2t" path="res://assets/data/tank_info/module_tracks.gd" id="6_ejktc"]
+
+[sub_resource type="Resource" id="Resource_06obr"]
+script = ExtResource("1_uuo85")
+power = 840
+fireStartingChance = 0.15
+name = "2ДГ-8М"
+display_name = "2ДГ-8М"
+level = 10
+health = 600
+weight = 1400
+
+[sub_resource type="Resource" id="Resource_w36gu"]
+script = ExtResource("3_wptkh")
+
+[sub_resource type="Curve" id="Curve_fnsqi"]
+
+[sub_resource type="Curve" id="Curve_foe7l"]
+
+[sub_resource type="Resource" id="Resource_5gwvj"]
+script = ExtResource("4_s66s1")
+name = "53-БР-482"
+dmg = 560
+pen = 265
+caliber = 130
+speed = 1030
+cost = 1250
+
+[sub_resource type="Resource" id="Resource_8mme0"]
+script = ExtResource("4_s66s1")
+name = "53-БК-482О"
+dmg = 490
+pen = 340
+caliber = 130
+speed = 850
+type = 2
+cost = 4800
+premium = true
+
+[sub_resource type="Resource" id="Resource_oxe0n"]
+script = ExtResource("4_s66s1")
+name = "53-ОФ-482М"
+dmg = 700
+pen = 65
+caliber = 130
+speed = 1030
+type = 3
+cost = 1190
+
+[sub_resource type="Resource" id="Resource_etepb"]
+script = ExtResource("2_ft5fj")
+reload = 12.46
+disp = 0.38
+deviation_up = Vector2(17, 5)
+deviation_up_custom = SubResource("Curve_foe7l")
+deviation_down_custom = SubResource("Curve_fnsqi")
+caliber = 130
+shot_sound = 3
+rot_speed = 30
+max_ammo = 40
+burst_info = SubResource("Resource_w36gu")
+shells = Array[ExtResource("4_s66s1")]([SubResource("Resource_5gwvj"), SubResource("Resource_8mme0"), SubResource("Resource_oxe0n")])
+name = "130 мм М-65М"
+display_name = "130 мм М-65М"
+level = 10
+health = 190
+weight = 4300
+
+[sub_resource type="Resource" id="Resource_28lj5"]
+script = ExtResource("6_ejktc")
+rot_speed = 30
+name = "Объект 279"
+display_name = "Объект 279"
+health = 250
+weight = 14000
+
+[resource]
+script = ExtResource("5_w50ep")
+icon = "res://assets/tanks/_279_icon.png"
+tex_main = "res://assets/tanks/_279.png"
+tex_tracks = "res://assets/tanks/_279_track.png"
+model_path = "res://assets/tanks/_279.glb"
+name = "279"
+display_name = "Объект 279"
+display_name_short = "Объект 279"
+health = 2100
+lvl = 10
+farm_coeff = 4.0
+tank_class = 2
+nation = 1
+speed_limits = Vector2(55, 20)
+turret_rot_speed = 0.6632251157578453
+turret_health = 160.0
+tree_tank = true
+tree_branch = 2
+prem = true
+cost = 15
+hull_weight = 59000
+engine_sound = 10
+track_sound = 2
+guns = Array[ExtResource("2_ft5fj")]([SubResource("Resource_etepb")])
+engines = Array[ExtResource("1_uuo85")]([SubResource("Resource_06obr")])
+tracks = Array[ExtResource("6_ejktc")]([SubResource("Resource_28lj5")])

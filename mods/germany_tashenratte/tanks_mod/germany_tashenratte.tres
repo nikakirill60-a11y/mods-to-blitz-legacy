@@ -1,0 +1,134 @@
+[gd_resource type="Resource" script_class="TankInfoMain" format=3 uid="uid://dvtkw1a6wj4p7"]
+
+[ext_resource type="Script" uid="uid://ik8cl56b1kn8" path="res://assets/data/tank_info/module_engine.gd" id="1_d17p1"]
+[ext_resource type="Texture2D" uid="uid://c14s7snpb5r1i" path="res://assets/gfx/ui/1111.png" id="1_m3qmd"]
+[ext_resource type="Script" uid="uid://cwwjyvioiwo1e" path="res://assets/data/tank_info/ability_extra_guns_info.gd" id="2_m3qmd"]
+[ext_resource type="Script" uid="uid://cwn7pqhusf5ai" path="res://assets/data/tank_info/module_gun.gd" id="2_qyoy7"]
+[ext_resource type="Script" uid="uid://db3udi6hv6vml" path="res://assets/data/tank_info/burst_info.gd" id="3_m3qmd"]
+[ext_resource type="Script" uid="uid://b3ngpj6cakj2c" path="res://assets/data/tank_info/cycle_info.gd" id="4_v1u1w"]
+[ext_resource type="Script" uid="uid://bmjo6p14kkiqq" path="res://assets/data/tank_info/shell_info.gd" id="5_plmhj"]
+[ext_resource type="Script" uid="uid://dqiabdd87qy5b" path="res://assets/data/tank_info/tank_info.gd" id="6_gf6xh"]
+[ext_resource type="Script" uid="uid://c47xj1fnl8h2t" path="res://assets/data/tank_info/module_tracks.gd" id="7_qor53"]
+
+[sub_resource type="Resource" id="Resource_oietw"]
+script = ExtResource("5_plmhj")
+dmg = 250
+pen = 75
+caliber = 40
+speed = 600
+type = 3
+cost = 0
+metadata/_custom_type_script = "uid://bmjo6p14kkiqq"
+
+[sub_resource type="Resource" id="Resource_fwdk5"]
+script = ExtResource("2_m3qmd")
+shell = SubResource("Resource_oietw")
+shot_sound = 2
+icon = ExtResource("1_m3qmd")
+cooldown = 45.0
+metadata/_custom_type_script = "uid://cwwjyvioiwo1e"
+
+[sub_resource type="Resource" id="Resource_umykt"]
+script = ExtResource("1_d17p1")
+power = 2000
+name = "‎MB 517"
+display_name = "‎MB 517"
+level = 11
+health = 380
+weight = 920
+
+[sub_resource type="Resource" id="Resource_4grj4"]
+script = ExtResource("3_m3qmd")
+
+[sub_resource type="Resource" id="Resource_0b80q"]
+script = ExtResource("4_v1u1w")
+
+[sub_resource type="Curve" id="Curve_5jxqd"]
+
+[sub_resource type="Curve" id="Curve_2fmvb"]
+
+[sub_resource type="Resource" id="Resource_nq5fi"]
+script = ExtResource("5_plmhj")
+name = "Pzgr."
+dmg = 520
+pen = 268
+caliber = 132
+speed = 1050
+type = 1
+cost = 1339
+
+[sub_resource type="Resource" id="Resource_5g1wl"]
+script = ExtResource("5_plmhj")
+dmg = 460
+pen = 330
+caliber = 132
+speed = 700
+type = 2
+cost = 5200
+premium = true
+
+[sub_resource type="Resource" id="Resource_6ghik"]
+script = ExtResource("5_plmhj")
+dmg = 660
+pen = 66
+caliber = 132
+speed = 800
+type = 3
+cost = 1339
+
+[sub_resource type="Resource" id="Resource_cck8k"]
+script = ExtResource("2_qyoy7")
+reload = 13.8
+disp = 0.36
+aim_time = 2.1
+deviation_up = Vector2(24, 8)
+deviation_up_custom = SubResource("Curve_2fmvb")
+deviation_down_custom = SubResource("Curve_5jxqd")
+caliber = 132
+shot_sound = 3
+rot_speed = 26
+max_ammo = 79
+burst_info = SubResource("Resource_4grj4")
+cycle_info = SubResource("Resource_0b80q")
+shells = Array[ExtResource("5_plmhj")]([SubResource("Resource_nq5fi"), SubResource("Resource_5g1wl"), SubResource("Resource_6ghik")])
+name = "‎13,2 cm Kw.K. L/66"
+display_name = "‎13,2 cm Kw.K. L/66"
+level = 11
+health = 240
+weight = 5600
+
+[sub_resource type="Resource" id="Resource_qib0n"]
+script = ExtResource("7_qor53")
+rot_speed = 15
+level = 11
+health = 360
+weight = 40000
+
+[resource]
+script = ExtResource("6_gf6xh")
+icon = "res://assets/tanks/germany_tashenratte_icon.png"
+tex_main = "res://assets/tanks/germany_tashenratte.png"
+tex_tracks = "res://assets/tanks/germany_tashenratte_track.png"
+model_path = "res://assets/tanks/germany_tashenratte.glb"
+name = "germany_tashenratte"
+display_name = "Tashenratte"
+display_name_short = "Tashenratte"
+health = 3500
+lvl = 10
+tank_class = 2
+nation = 2
+speed_limits = Vector2(20, 15)
+turret_rot_speed = 0.27
+turret_health = 130.0
+tree_tank = true
+tree_branch = 2
+prem = true
+cost_xp = 0
+cost = 15000
+hull_weight = 200000
+engine_sound = 2
+track_sound = 2
+guns = Array[ExtResource("2_qyoy7")]([SubResource("Resource_cck8k")])
+engines = Array[ExtResource("1_d17p1")]([SubResource("Resource_umykt")])
+tracks = Array[ExtResource("7_qor53")]([SubResource("Resource_qib0n")])
+ability = SubResource("Resource_fwdk5")
