@@ -13,9 +13,15 @@ this repository use:
     |-- trackL / trackR            (animated track meshes)
     `-- turret01                   (turret mesh)
         |-- <tank>_armor_turret_*  (armour plates)
-        |-- <tank>_gun_mask_*      (gun mantlet / mask)
+        |-- <tank>_gun_mantlet     (visible mantlet, taken from the source model)
+        |-- <tank>_gun_mask_250    (invisible gun collision volume)
         `-- gun01                  (gun mesh)
             `-- gun01_shoot_pos    (muzzle marker)
+
+Nodes whose names contain `phys`, `armor_`, `mask_` or `shoot_pos` are logic
+nodes: the engine uses them for collision / armour / muzzle logic and does not
+draw them.  Everything that has to be visible therefore must NOT be named that
+way, which is why the mantlet keeps its own `gun_mantlet` node.
 
 This script rewrites the glb so it matches that layout:
   * the stray -90 deg yaw is removed (the mesh data is already Y-up / Z-forward),
@@ -226,50 +232,51 @@ def main():
     translate_mesh(gltf, binary, gun_mesh, tuple(-v for v in trunnion))
     translate_mesh(gltf, binary, mask_mesh, tuple(-v for v in turret_pivot))
 
-    # -- 3. transparent helper material for the invisible collision geometry --------
-    helper_material = len(gltf["materials"])
-    gltf["materials"].append({
-        "name": "poland_60tp_helper",
-        "alphaMode": "BLEND",
-        "doubleSided": True,
-        "pbrMetallicRoughness": {
-            "baseColorFactor": [1.0, 1.0, 1.0, 0.0],
-            "metallicFactor": 0.0,
-        },
-    })
-
-    # -- 4. generated meshes ---------------------------------------------------------
+    # -- 3. generated meshes ---------------------------------------------------------
+    # The logic meshes below deliberately carry NO material.  That is the convention
+    # used by every other mod in this repository (armour plates, collision boxes and
+    # gun masks there are material-less as well) and it keeps them out of the
+    # rendered image - a helper material would instead paint translucent slabs over
+    # the hull and make the camouflage look broken.
     half = 0.03
     shoot_pos_mesh = add_box(gltf, binary, gltf["materials"], "poland_60tp_shoot_pos",
-                             (-half, -half, -half), (half, half, half), helper_material)
+                             (-half, -half, -half), (half, half, half), None)
     hull_phys_mesh = add_box(gltf, binary, gltf["materials"], "poland_60tp_hull_phys_mesh",
                               (hull_min[0] + 0.05, hull_min[1], hull_min[2] + 0.05),
-                              (hull_max[0] - 0.05, hull_max[1] + 0.05, hull_max[2] - 0.05), helper_material)
+                              (hull_max[0] - 0.05, hull_max[1] + 0.05, hull_max[2] - 0.05), None)
     tracks_phys_mesh = add_box(gltf, binary, gltf["materials"], "poland_60tp_tracks_phys_mesh",
                                (min(track_l_min[0], track_r_min[0]), 0.0, min(track_l_min[2], track_r_min[2])),
                                (max(track_l_max[0], track_r_max[0]), max(track_l_max[1], track_r_max[1]),
-                                max(track_l_max[2], track_r_max[2])), helper_material)
+                                max(track_l_max[2], track_r_max[2])), None)
 
     # armour plates: thin slabs sitting on the hull / turret skin
     plate_t = 0.04
     hull_front = add_box(gltf, binary, gltf["materials"], "poland_60tp_hull_front",
                          (hull_min[0], hull_min[1], hull_min[2] - plate_t),
-                         (hull_max[0], hull_max[1], hull_min[2]), helper_material)
+                         (hull_max[0], hull_max[1], hull_min[2]), None)
     hull_side_l = add_box(gltf, binary, gltf["materials"], "poland_60tp_hull_side_l",
                            (hull_min[0] - plate_t, hull_min[1], hull_min[2]),
-                           (hull_min[0], hull_max[1], hull_max[2]), helper_material)
+                           (hull_min[0], hull_max[1], hull_max[2]), None)
     hull_side_r = add_box(gltf, binary, gltf["materials"], "poland_60tp_hull_side_r",
                            (hull_max[0], hull_min[1], hull_min[2]),
-                           (hull_max[0] + plate_t, hull_max[1], hull_max[2]), helper_material)
+                           (hull_max[0] + plate_t, hull_max[1], hull_max[2]), None)
     hull_rear = add_box(gltf, binary, gltf["materials"], "poland_60tp_hull_rear",
                         (hull_min[0], hull_min[1], hull_max[2]),
-                        (hull_max[0], hull_max[1], hull_max[2] + plate_t), helper_material)
+                        (hull_max[0], hull_max[1], hull_max[2] + plate_t), None)
 
     def turret_box(name, low, high):
         """Box given in tank space, stored in the turret frame."""
         return add_box(gltf, binary, gltf["materials"], name,
                        tuple(low[k] - turret_pivot[k] for k in range(3)),
-                       tuple(high[k] - turret_pivot[k] for k in range(3)), helper_material)
+                       tuple(high[k] - turret_pivot[k] for k in range(3)), None)
+
+    # invisible collision volume for the gun, the same thing the reference mods call
+    # <tank>_gun_mask_<mm>.  It is stored in the turret frame like the mantlet.
+    gun_mask_mesh = add_box(gltf, binary, gltf["materials"], "poland_60tp_gun_mask_mesh",
+                            (gun_min[0] - turret_pivot[0], gun_axis_y - 0.25 - turret_pivot[1],
+                             gun_min[2] - turret_pivot[2]),
+                            (gun_max[0] - turret_pivot[0], gun_axis_y + 0.25 - turret_pivot[1],
+                             mask_min[2] - turret_pivot[2]), None)
 
     turret_front = turret_box("poland_60tp_turret_front",
                                (turret_min[0], turret_min[1], turret_min[2] - plate_t),
@@ -315,15 +322,22 @@ def main():
     shoot_pos = add_node({"name": "gun01_shoot_pos", "mesh": shoot_pos_mesh,
                           "translation": [muzzle[0] - trunnion[0], muzzle[1] - trunnion[1], muzzle[2] - trunnion[2]],
                           "children": []})
-    # the mantlet mesh is stored in the turret frame, so the node keeps the identity transform
-    gun_mask = add_node({"name": "%s_gun_mask_250" % TANK_NAME, "mesh": mask_mesh, "children": []})
+    # The source mantlet (`1_gun_02_mask_batch_1`) is real, visible artwork and it is
+    # what bridges the gap between the barrel and the turret front.  It must NOT be
+    # called `*_gun_mask_*`: the engine reserves that name for the invisible gun
+    # collision volume and never draws those nodes, which is exactly why the barrel
+    # used to look cut off.  It is stored in the turret frame with an identity
+    # transform, and the gun trunnion sits on its front face, so the barrel keeps
+    # meeting the mantlet while the gun elevates.
+    gun_mantlet = add_node({"name": "%s_gun_mantlet" % TANK_NAME, "mesh": mask_mesh, "children": []})
+    gun_mask = add_node({"name": "%s_gun_mask_250" % TANK_NAME, "mesh": gun_mask_mesh, "children": []})
 
     for (side, number), mesh_index in sorted(wheel_meshes.items()):
         wheel = add_node({"name": "wheel%s%d" % (side, number), "mesh": mesh_index, "children": []})
         nodes[hull_vis]["children"].append(wheel)
 
     nodes[gun]["children"].append(shoot_pos)
-    nodes[turret]["children"].extend([gun, gun_mask])
+    nodes[turret]["children"].extend([gun, gun_mantlet, gun_mask])
 
     # turret armour plates live in the turret frame
     for (suffix, _thickness), mesh_index in zip(TURRET_PLATES,
