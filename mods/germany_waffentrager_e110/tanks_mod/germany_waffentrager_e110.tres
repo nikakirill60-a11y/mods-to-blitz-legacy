@@ -1,0 +1,113 @@
+[gd_resource type="Resource" script_class="TankInfoMain" format=3 uid="uid://c8wq2nv5e110a"]
+
+[ext_resource type="Script" uid="uid://ik8cl56b1kn8" path="res://assets/data/tank_info/module_engine.gd" id="1_wteng"]
+[ext_resource type="Script" uid="uid://cwn7pqhusf5ai" path="res://assets/data/tank_info/module_gun.gd" id="2_wtgun"]
+[ext_resource type="Script" uid="uid://db3udi6hv6vml" path="res://assets/data/tank_info/burst_info.gd" id="3_wtbrs"]
+[ext_resource type="Script" uid="uid://bmjo6p14kkiqq" path="res://assets/data/tank_info/shell_info.gd" id="4_wtshl"]
+[ext_resource type="Script" uid="uid://dqiabdd87qy5b" path="res://assets/data/tank_info/tank_info.gd" id="5_wttnk"]
+[ext_resource type="Script" uid="uid://c47xj1fnl8h2t" path="res://assets/data/tank_info/module_tracks.gd" id="6_wttrk"]
+
+[sub_resource type="Resource" id="Resource_engine"]
+script = ExtResource("1_wteng")
+power = 1455
+fireStartingChance = 0.18
+name = "Maybach HL 234WM"
+display_name = "Maybach HL 234WM"
+level = 10
+health = 380
+weight = 1200
+
+[sub_resource type="Resource" id="Resource_burst"]
+script = ExtResource("3_wtbrs")
+
+[sub_resource type="Curve" id="Curve_deviation_up"]
+
+[sub_resource type="Curve" id="Curve_deviation_down"]
+
+[sub_resource type="Resource" id="Resource_shell_ap"]
+script = ExtResource("4_wtshl")
+name = "PzGr39M"
+dmg = 340
+pen = 280
+caliber = 128
+speed = 890
+type = 0
+cost = 1070
+
+[sub_resource type="Resource" id="Resource_shell_apcr"]
+script = ExtResource("4_wtshl")
+name = "PzGr40M"
+dmg = 300
+pen = 360
+caliber = 128
+speed = 1240
+type = 1
+cost = 4000
+premium = true
+
+[sub_resource type="Resource" id="Resource_shell_he"]
+script = ExtResource("4_wtshl")
+name = "SprG18M"
+dmg = 400
+pen = 65
+caliber = 128
+speed = 790
+type = 3
+cost = 935
+
+[sub_resource type="Resource" id="Resource_gun"]
+script = ExtResource("2_wtgun")
+reload = 8.0
+disp = 0.37
+aim_time = 2.55
+deviation_up = Vector2(14, 8)
+deviation_up_custom = SubResource("Curve_deviation_up")
+deviation_down_custom = SubResource("Curve_deviation_down")
+caliber = 128
+shot_sound = 3
+rot_speed = 15
+max_ammo = 50
+burst_info = SubResource("Resource_burst")
+shells = Array[ExtResource("4_wtshl")]([SubResource("Resource_shell_ap"), SubResource("Resource_shell_apcr"), SubResource("Resource_shell_he")])
+name = "12,8 cm Kw.K. 44 L/55 WM"
+display_name = "12,8 cm Kw.K. 44 L/55 WM"
+level = 10
+health = 240
+weight = 5600
+
+[sub_resource type="Resource" id="Resource_tracks"]
+script = ExtResource("6_wttrk")
+rot_speed = 22
+level = 10
+health = 300
+weight = 30000
+
+[resource]
+script = ExtResource("5_wttnk")
+icon = "res://assets/tanks/germany_waffentrager_e110_icon.png"
+tex_main = "res://assets/tanks/germany_waffentrager_e110.png"
+tex_tracks = "res://assets/tanks/germany_waffentrager_e110_track.png"
+model_path = "res://assets/tanks/germany_waffentrager_e110.glb"
+name = "germany_waffentrager_e110"
+display_name = "Waffenträger E 110"
+display_name_short = "Waffenträger E110"
+health = 1900
+lvl = 10
+farm_coeff = 4.0
+tank_class = 3
+nation = 2
+speed_limits = Vector2(38, 12)
+turret_rot_speed = 0.2617993877991494
+turret_health = 120.0
+tree_tank = true
+tree_branch = 2
+prem = true
+cost_xp = 0
+cost = 15000
+hull_weight = 83000
+engine_sound = 2
+track_sound = 2
+matchmaker_chance = 100.0
+guns = Array[ExtResource("2_wtgun")]([SubResource("Resource_gun")])
+engines = Array[ExtResource("1_wteng")]([SubResource("Resource_engine")])
+tracks = Array[ExtResource("6_wttrk")]([SubResource("Resource_tracks")])

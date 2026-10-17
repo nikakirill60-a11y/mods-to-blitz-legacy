@@ -1,5 +1,6 @@
-# Сборочный дубликат мода в структуре репозитория (в PR лежит install-версия)
+# Сборочные дубликаты модов в структуре репозитория (в PR лежат install-версии)
 poland_60tp.zip
+germany_waffentrager_e110.zip
 
 # Python
 __pycache__/
