@@ -1,0 +1,115 @@
+[gd_resource type="Resource" script_class="TankInfoMain" format=3 uid="uid://1mv8t4bxu6cu0"]
+
+[ext_resource type="Script" uid="uid://ik8cl56b1kn8" path="res://assets/data/tank_info/module_engine.gd" id="1_iwyoc"]
+[ext_resource type="Script" uid="uid://cwn7pqhusf5ai" path="res://assets/data/tank_info/module_gun.gd" id="2_koncu"]
+[ext_resource type="Script" uid="uid://db3udi6hv6vml" path="res://assets/data/tank_info/burst_info.gd" id="3_zamgn"]
+[ext_resource type="Script" uid="uid://bmjo6p14kkiqq" path="res://assets/data/tank_info/shell_info.gd" id="4_ygigc"]
+[ext_resource type="Script" uid="uid://dqiabdd87qy5b" path="res://assets/data/tank_info/tank_info.gd" id="5_zbixr"]
+[ext_resource type="Script" uid="uid://c47xj1fnl8h2t" path="res://assets/data/tank_info/module_tracks.gd" id="6_zhtji"]
+
+[sub_resource type="Resource" id="Resource_engine"]
+script = ExtResource("1_iwyoc")
+power = 710
+fireStartingChance = 0.15
+name = "MT-50TM"
+display_name = "MT-50TM"
+level = 10
+health = 370
+weight = 1000
+
+[sub_resource type="Resource" id="Resource_burst"]
+script = ExtResource("3_zamgn")
+
+[sub_resource type="Curve" id="Curve_deviation_up"]
+
+[sub_resource type="Curve" id="Curve_deviation_down"]
+
+[sub_resource type="Resource" id="Resource_shell_apcr"]
+script = ExtResource("4_ygigc")
+name = "Pocisk Przeciwpancerny"
+dmg = 630
+pen = 252
+caliber = 152.4
+speed = 780
+type = 1
+cost = 0
+
+[sub_resource type="Resource" id="Resource_shell_he"]
+script = ExtResource("4_ygigc")
+name = "Pocisk Wybuchowy"
+dmg = 720
+pen = 80
+caliber = 152.4
+speed = 770
+type = 3
+cost = 0
+
+[sub_resource type="Resource" id="Resource_shell_heat"]
+script = ExtResource("4_ygigc")
+name = "Pocisk Kumulacyjny"
+dmg = 550
+pen = 315
+caliber = 152.4
+speed = 680
+type = 2
+cost = 4800
+premium = true
+
+[sub_resource type="Resource" id="Resource_gun"]
+script = ExtResource("2_koncu")
+reload = 16.78
+disp = 0.403
+aim_time = 2.4
+deviation_up = Vector2(17, 5)
+deviation_up_custom = SubResource("Curve_deviation_up")
+deviation_down_custom = SubResource("Curve_deviation_down")
+caliber = 152.4
+shot_sound = 3
+rot_speed = 24
+max_ammo = 40
+burst_info = SubResource("Resource_burst")
+shells = Array[ExtResource("4_ygigc")]([SubResource("Resource_shell_apcr"), SubResource("Resource_shell_he"), SubResource("Resource_shell_heat")])
+name = "152 mm J-2"
+display_name = "152 mm J-2"
+level = 10
+health = 300
+weight = 5000
+
+[sub_resource type="Resource" id="Resource_tracks"]
+script = ExtResource("6_zhtji")
+rot_speed = 29
+name = "60TP Lewandowskiego"
+display_name = "60TP Lewandowskiego"
+level = 10
+health = 250
+weight = 15000
+
+[resource]
+script = ExtResource("5_zbixr")
+icon = "res://assets/tanks/poland_60tp_icon.png"
+tex_main = "res://assets/tanks/poland_60tp.png"
+tex_tracks = "res://assets/tanks/poland_60tp_track.png"
+model_path = "res://assets/tanks/poland_60tp.glb"
+name = "poland_60tp"
+display_name = "60TP Lewandowskiego"
+display_name_short = "60TP"
+health = 2500
+lvl = 10
+farm_coeff = 4.0
+tank_class = 2
+nation = 9
+speed_limits = Vector2(36, 15)
+turret_rot_speed = 17.73
+turret_health = 280.0
+tree_tank = true
+tree_branch = 2
+prem = true
+cost_xp = 0
+cost = 15000
+hull_weight = 60000
+engine_sound = 2
+track_sound = 2
+matchmaker_chance = 100.0
+guns = Array[ExtResource("2_koncu")]([SubResource("Resource_gun")])
+engines = Array[ExtResource("1_iwyoc")]([SubResource("Resource_engine")])
+tracks = Array[ExtResource("6_zhtji")]([SubResource("Resource_tracks")])
