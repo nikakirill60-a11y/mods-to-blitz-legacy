@@ -2,7 +2,7 @@
 """Build ussr_ms11_install.zip in the repository root (deterministic).
 
 The archive is laid out like the game folder (assets/tanks, assets/data/tanks_mod),
-plus README.txt and the drum test variants in variants/ (outside assets/, so they
+plus README.txt and the fallback variant in variants/ (outside assets/, so they
 are never loaded by accident).
 
 Usage:  python3 mods/ussr_ms11/tools/make_zip.py
@@ -23,10 +23,7 @@ FILES = [
     ("assets/tanks/ussr_ms11_track.png", "assets/tanks/ussr_ms11_track.png"),
     ("assets/tanks/ussr_ms11_icon.png", "assets/tanks/ussr_ms11_icon.png"),
     ("tanks_mod/ussr_ms11.tres", "assets/data/tanks_mod/ussr_ms11.tres"),
-    ("variants/fire_mode_1/ussr_ms11.tres", "variants/fire_mode_1/ussr_ms11.tres"),
-    ("variants/fire_mode_3/ussr_ms11.tres", "variants/fire_mode_3/ussr_ms11.tres"),
     ("variants/no_drum/ussr_ms11.tres", "variants/no_drum/ussr_ms11.tres"),
-    ("variants/probe_gun_name/ussr_ms11.tres", "variants/probe_gun_name/ussr_ms11.tres"),
 ]
 
 

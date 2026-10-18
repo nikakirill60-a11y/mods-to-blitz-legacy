@@ -3,7 +3,6 @@
 [ext_resource type="Script" uid="uid://ik8cl56b1kn8" path="res://assets/data/tank_info/module_engine.gd" id="1_ms11e"]
 [ext_resource type="Script" uid="uid://cwn7pqhusf5ai" path="res://assets/data/tank_info/module_gun.gd" id="2_ms11g"]
 [ext_resource type="Script" uid="uid://db3udi6hv6vml" path="res://assets/data/tank_info/burst_info.gd" id="3_ms11b"]
-[ext_resource type="Script" uid="uid://b3ngpj6cakj2c" path="res://assets/data/tank_info/cycle_info.gd" id="4_ms11c"]
 [ext_resource type="Script" uid="uid://bmjo6p14kkiqq" path="res://assets/data/tank_info/shell_info.gd" id="5_ms11s"]
 [ext_resource type="Script" uid="uid://dqiabdd87qy5b" path="res://assets/data/tank_info/tank_info.gd" id="6_ms11t"]
 [ext_resource type="Script" uid="uid://c47xj1fnl8h2t" path="res://assets/data/tank_info/module_tracks.gd" id="7_ms11k"]
@@ -20,34 +19,9 @@ weight = 1100
 
 [sub_resource type="Resource" id="Resource_burst"]
 script = ExtResource("3_ms11b")
-count = 11
-shots = 11
-shell_count = 11
-shells_count = 11
-clip_size = 11
-clip = 11
-size = 11
-amount = 11
-burst_count = 11
-shots_count = 11
-intrashot = 0.8
-interval = 0.8
-reload = 22.05
-
-[sub_resource type="Resource" id="Resource_cycle"]
-script = ExtResource("4_ms11c")
-reload = 22.05
-intrashot = 0.8
-count = 11
-shots = 11
-shell_count = 11
-shells_count = 11
-clip_size = 11
-clip = 11
-size = 11
-amount = 11
-burst_count = 11
-shots_count = 11
+bursts = Array[int]([1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1])
+intraclip = 0.8
+intraburst = 0.8
 
 [sub_resource type="Curve" id="Curve_deviation_up"]
 
@@ -94,11 +68,10 @@ deviation_up_custom = SubResource("Curve_deviation_up")
 deviation_down_custom = SubResource("Curve_deviation_down")
 caliber = 85
 shot_sound = 3
-fire_mode = 2
+fire_mode = 1
 rot_speed = 36
 max_ammo = 66
 burst_info = SubResource("Resource_burst")
-cycle_info = SubResource("Resource_cycle")
 shells = Array[ExtResource("5_ms11s")]([SubResource("Resource_shell_ap"), SubResource("Resource_shell_apcr"), SubResource("Resource_shell_he")])
 name = "85 мм МС-11 (барабан 11)"
 display_name = "85 мм МС-11 (барабан 11)"

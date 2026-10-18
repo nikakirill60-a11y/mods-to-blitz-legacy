@@ -1,36 +1,34 @@
 #!/usr/bin/env python3
-"""Generate the TankInfoMain resource of the MS-11 (МС-11) and its drum test variants.
+"""Generate the TankInfoMain resource of the MS-11 (МС-11) and its fallback variant.
 
 The MS-11 has an 11-shell drum: 11 shots 0.8 s apart, then a 22.05 s magazine
-reload.  How the engine describes a magazine is NOT documented anywhere this
-repository could find:
+reload.
 
-  * every gun of the reference mods carries an (always empty) `burst_info`
-    sub-resource - script res://assets/data/tank_info/burst_info.gd,
-  * the double-barrelled Mäuschen (germany_mauses) is the only gun with a filled
-    `cycle_info` (reload / intrashot / volley_charge_time) and `fire_mode = 3`.
-    Its cycle is two shots - one per muzzle, `gun01_shoot_posL` / `...R`.
+Drum format - taken from the game's own Leichttraktor (2 cm Breda, a 12-shell
+magazine fired in bursts of 3):
 
-So the field holding the number of shells and the `fire_mode` value of a
-magazine gun are a best guess.  Godot does not fail on unknown properties of a
-scripted resource (they are kept as "missing" properties and ignored), so the
-shell count is written under every plausible name at once, in both burst_info
-and cycle_info.  The timing uses the names known from cycle_info.
+    [sub_resource type="Resource" id="..."]
+    script = ExtResource("<burst_info.gd>")
+    bursts = Array[int]([3, 3, 3, 3])     # one entry per trigger pull, value = shots in it
+    intraclip = 0.25                      # s between bursts inside the magazine
+    intraburst = 0.25                     # s between shots inside one burst
+    ...
+    gun: reload = 6.5                     # whole magazine reload
+         fire_mode = 1                    # magazine / burst gun
+         burst_info = SubResource("...")
+
+An 11-shell drum firing one shell per click is therefore eleven bursts of 1.
 
 Output:
-  tanks_mod/ussr_ms11.tres               main file: fire_mode = 2 (cycle without
-                                         the Mäuschen's volley)
-  variants/fire_mode_1/ussr_ms11.tres    same drum, fire_mode = 1
-  variants/fire_mode_3/ussr_ms11.tres    same drum, fire_mode = 3 (Mäuschen mode)
-  variants/probe_gun_name/ussr_ms11.tres test: gun named like the AMX 50 B gun
-  variants/no_drum/ussr_ms11.tres        no drum at all: a single-shot gun with the
-                                         same damage per minute (fallback in case a
-                                         drum variant does not load)
+  tanks_mod/ussr_ms11.tres            main file: drum 11 x 1, fire_mode = 1
+  variants/no_drum/ussr_ms11.tres     no drum: a single-shot gun with the same
+                                      damage per minute (fallback)
 
 Usage:  python3 mods/ussr_ms11/tools/make_tres.py
 """
 
 import os
+import shutil
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
@@ -46,15 +44,11 @@ SHELL_DMG_AP = 140
 CYCLE_TIME = DRUM_RELOAD + (DRUM_SHELLS - 1) * DRUM_INTRASHOT
 NO_DRUM_RELOAD = round(CYCLE_TIME / DRUM_SHELLS, 2)
 
-COUNT_FIELDS = ["count", "shots", "shell_count", "shells_count", "clip_size", "clip",
-                "size", "amount", "burst_count", "shots_count"]
-
 HEADER = """[gd_resource type="Resource" script_class="TankInfoMain" format=3 uid="uid://{uid}"]
 
 [ext_resource type="Script" uid="uid://ik8cl56b1kn8" path="res://assets/data/tank_info/module_engine.gd" id="1_ms11e"]
 [ext_resource type="Script" uid="uid://cwn7pqhusf5ai" path="res://assets/data/tank_info/module_gun.gd" id="2_ms11g"]
 [ext_resource type="Script" uid="uid://db3udi6hv6vml" path="res://assets/data/tank_info/burst_info.gd" id="3_ms11b"]
-[ext_resource type="Script" uid="uid://b3ngpj6cakj2c" path="res://assets/data/tank_info/cycle_info.gd" id="4_ms11c"]
 [ext_resource type="Script" uid="uid://bmjo6p14kkiqq" path="res://assets/data/tank_info/shell_info.gd" id="5_ms11s"]
 [ext_resource type="Script" uid="uid://dqiabdd87qy5b" path="res://assets/data/tank_info/tank_info.gd" id="6_ms11t"]
 [ext_resource type="Script" uid="uid://c47xj1fnl8h2t" path="res://assets/data/tank_info/module_tracks.gd" id="7_ms11k"]
@@ -73,23 +67,14 @@ weight = 1100
 BURST_DRUM = """
 [sub_resource type="Resource" id="Resource_burst"]
 script = ExtResource("3_ms11b")
-{counts}
-intrashot = {intrashot}
-interval = {intrashot}
-reload = {reload}
+bursts = Array[int]([{bursts}])
+intraclip = {intrashot}
+intraburst = {intrashot}
 """
 
 BURST_EMPTY = """
 [sub_resource type="Resource" id="Resource_burst"]
 script = ExtResource("3_ms11b")
-"""
-
-CYCLE_DRUM = """
-[sub_resource type="Resource" id="Resource_cycle"]
-script = ExtResource("4_ms11c")
-reload = {reload}
-intrashot = {intrashot}
-{counts}
 """
 
 BODY = """
@@ -141,8 +126,8 @@ shot_sound = 3
 {fire_mode}rot_speed = 36
 max_ammo = 66
 burst_info = SubResource("Resource_burst")
-{cycle}shells = Array[ExtResource("5_ms11s")]([SubResource("Resource_shell_ap"), SubResource("Resource_shell_apcr"), SubResource("Resource_shell_he")])
-name = "{gun_id}"
+shells = Array[ExtResource("5_ms11s")]([SubResource("Resource_shell_ap"), SubResource("Resource_shell_apcr"), SubResource("Resource_shell_he")])
+name = "{gun_name}"
 display_name = "{gun_name}"
 level = 10
 health = 220
@@ -189,20 +174,16 @@ tracks = Array[ExtResource("7_ms11k")]([SubResource("Resource_tracks")])
 """
 
 
-def build(fire_mode, drum, uid, gun_id=None, reload=None, gun_name=None):
-    counts = "\n".join("%s = %d" % (field, DRUM_SHELLS) for field in COUNT_FIELDS)
+def build(drum, uid):
     text = HEADER.format(uid=uid)
     if drum:
-        text += BURST_DRUM.format(counts=counts, intrashot=DRUM_INTRASHOT, reload=DRUM_RELOAD)
-        text += CYCLE_DRUM.format(counts=counts, intrashot=DRUM_INTRASHOT, reload=DRUM_RELOAD)
+        text += BURST_DRUM.format(bursts=", ".join(["1"] * DRUM_SHELLS), intrashot=DRUM_INTRASHOT)
     else:
         text += BURST_EMPTY
     text += BODY.format(
-        gun_reload=reload if reload is not None else (DRUM_RELOAD if drum else NO_DRUM_RELOAD),
-        fire_mode=("fire_mode = %d\n" % fire_mode) if drum else "",
-        cycle='cycle_info = SubResource("Resource_cycle")\n' if drum else "",
-        gun_name=gun_name or ("85 мм МС-11 (барабан 11)" if drum else "85 мм МС-11"),
-        gun_id=gun_id or gun_name or ("85 мм МС-11 (барабан 11)" if drum else "85 мм МС-11"),
+        gun_reload=DRUM_RELOAD if drum else NO_DRUM_RELOAD,
+        fire_mode="fire_mode = 1\n" if drum else "",
+        gun_name="85 мм МС-11 (барабан 11)" if drum else "85 мм МС-11",
     )
     return text
 
@@ -216,22 +197,14 @@ def write(rel_path, text):
 
 
 def main():
-    # The uid of the resource is the same in every variant: they all replace the same
-    # file (tanks_mod/ussr_ms11.tres), only one of them is installed at a time.
+    # The uid is the same in both files: they replace the same file
+    # (tanks_mod/ussr_ms11.tres), only one of them is installed at a time.
     uid = "1ms11drum11xa"
-    write("tanks_mod/ussr_ms11.tres", build(2, True, uid))
-    write("variants/fire_mode_1/ussr_ms11.tres", build(1, True, uid))
-    write("variants/fire_mode_3/ussr_ms11.tres", build(3, True, uid))
-    write("variants/no_drum/ussr_ms11.tres", build(0, False, uid))
-    # Probe: the game's AMX 50 B fires a 4-shell drum (2.73 s between shots) although its
-    # burst_info is empty and it has no fire_mode / cycle_info - exactly like the
-    # single-shot Object 279 / Sturmtiger. So the drum must be looked up outside the
-    # .tres, probably by the gun's `name`. This variant is described exactly like the
-    # AMX 50 B gun and borrows its internal name: if the MS-11 starts firing 4-shell
-    # bursts, the drum is keyed by the gun name.
-    write("variants/probe_gun_name/ussr_ms11.tres",
-          build(0, False, uid, gun_id="_120mm_SA_46", reload=DRUM_RELOAD,
-                gun_name="85 мм МС-11 (тест барабана)"))
+    write("tanks_mod/ussr_ms11.tres", build(True, uid))
+    write("variants/no_drum/ussr_ms11.tres", build(False, uid))
+    # variants from the guessing stage (before the real burst_info format was known)
+    for old in ("fire_mode_1", "fire_mode_3", "probe_gun_name"):
+        shutil.rmtree(os.path.join(MOD, "variants", old), ignore_errors=True)
     print("drum: %d x %d dmg, %.2f s between shots, %.2f s reload -> cycle %.2f s, "
           "DPM %.0f; no-drum reload %.2f s (DPM %.0f)"
           % (DRUM_SHELLS, SHELL_DMG_AP, DRUM_INTRASHOT, DRUM_RELOAD, CYCLE_TIME,

@@ -3,7 +3,6 @@
 [ext_resource type="Script" uid="uid://ik8cl56b1kn8" path="res://assets/data/tank_info/module_engine.gd" id="1_ms11e"]
 [ext_resource type="Script" uid="uid://cwn7pqhusf5ai" path="res://assets/data/tank_info/module_gun.gd" id="2_ms11g"]
 [ext_resource type="Script" uid="uid://db3udi6hv6vml" path="res://assets/data/tank_info/burst_info.gd" id="3_ms11b"]
-[ext_resource type="Script" uid="uid://b3ngpj6cakj2c" path="res://assets/data/tank_info/cycle_info.gd" id="4_ms11c"]
 [ext_resource type="Script" uid="uid://bmjo6p14kkiqq" path="res://assets/data/tank_info/shell_info.gd" id="5_ms11s"]
 [ext_resource type="Script" uid="uid://dqiabdd87qy5b" path="res://assets/data/tank_info/tank_info.gd" id="6_ms11t"]
 [ext_resource type="Script" uid="uid://c47xj1fnl8h2t" path="res://assets/data/tank_info/module_tracks.gd" id="7_ms11k"]
