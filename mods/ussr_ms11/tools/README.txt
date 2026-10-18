@@ -26,6 +26,10 @@
   variants/fire_mode_3/ussr_ms11.tres   барабан, fire_mode = 3
   variants/no_drum/ussr_ms11.tres       без барабана, перезарядка
                                         2,73 с (тот же урон в минуту)
+  variants/probe_gun_name/ussr_ms11.tres  тест: орудие названо как у
+                                        AMX 50 B (_120mm_SA_46). Если МС-11
+                                        стреляет по 4 снаряда раз в 2,73 с,
+                                        барабан в игре задаётся по имени орудия
 
 Скопируйте нужный файл вместо assets/data/tanks_mod/ussr_ms11.tres
 и перезапустите игру. Папку variants/ в игру класть не обязательно.

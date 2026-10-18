@@ -22,6 +22,7 @@ Output:
                                          the Mäuschen's volley)
   variants/fire_mode_1/ussr_ms11.tres    same drum, fire_mode = 1
   variants/fire_mode_3/ussr_ms11.tres    same drum, fire_mode = 3 (Mäuschen mode)
+  variants/probe_gun_name/ussr_ms11.tres test: gun named like the AMX 50 B gun
   variants/no_drum/ussr_ms11.tres        no drum at all: a single-shot gun with the
                                          same damage per minute (fallback in case a
                                          drum variant does not load)
@@ -141,7 +142,7 @@ shot_sound = 3
 max_ammo = 66
 burst_info = SubResource("Resource_burst")
 {cycle}shells = Array[ExtResource("5_ms11s")]([SubResource("Resource_shell_ap"), SubResource("Resource_shell_apcr"), SubResource("Resource_shell_he")])
-name = "{gun_name}"
+name = "{gun_id}"
 display_name = "{gun_name}"
 level = 10
 health = 220
@@ -188,7 +189,7 @@ tracks = Array[ExtResource("7_ms11k")]([SubResource("Resource_tracks")])
 """
 
 
-def build(fire_mode, drum, uid):
+def build(fire_mode, drum, uid, gun_id=None, reload=None, gun_name=None):
     counts = "\n".join("%s = %d" % (field, DRUM_SHELLS) for field in COUNT_FIELDS)
     text = HEADER.format(uid=uid)
     if drum:
@@ -197,10 +198,11 @@ def build(fire_mode, drum, uid):
     else:
         text += BURST_EMPTY
     text += BODY.format(
-        gun_reload=DRUM_RELOAD if drum else NO_DRUM_RELOAD,
+        gun_reload=reload if reload is not None else (DRUM_RELOAD if drum else NO_DRUM_RELOAD),
         fire_mode=("fire_mode = %d\n" % fire_mode) if drum else "",
         cycle='cycle_info = SubResource("Resource_cycle")\n' if drum else "",
-        gun_name="85 мм МС-11 (барабан 11)" if drum else "85 мм МС-11",
+        gun_name=gun_name or ("85 мм МС-11 (барабан 11)" if drum else "85 мм МС-11"),
+        gun_id=gun_id or gun_name or ("85 мм МС-11 (барабан 11)" if drum else "85 мм МС-11"),
     )
     return text
 
@@ -221,6 +223,15 @@ def main():
     write("variants/fire_mode_1/ussr_ms11.tres", build(1, True, uid))
     write("variants/fire_mode_3/ussr_ms11.tres", build(3, True, uid))
     write("variants/no_drum/ussr_ms11.tres", build(0, False, uid))
+    # Probe: the game's AMX 50 B fires a 4-shell drum (2.73 s between shots) although its
+    # burst_info is empty and it has no fire_mode / cycle_info - exactly like the
+    # single-shot Object 279 / Sturmtiger. So the drum must be looked up outside the
+    # .tres, probably by the gun's `name`. This variant is described exactly like the
+    # AMX 50 B gun and borrows its internal name: if the MS-11 starts firing 4-shell
+    # bursts, the drum is keyed by the gun name.
+    write("variants/probe_gun_name/ussr_ms11.tres",
+          build(0, False, uid, gun_id="_120mm_SA_46", reload=DRUM_RELOAD,
+                gun_name="85 мм МС-11 (тест барабана)"))
     print("drum: %d x %d dmg, %.2f s between shots, %.2f s reload -> cycle %.2f s, "
           "DPM %.0f; no-drum reload %.2f s (DPM %.0f)"
           % (DRUM_SHELLS, SHELL_DMG_AP, DRUM_INTRASHOT, DRUM_RELOAD, CYCLE_TIME,

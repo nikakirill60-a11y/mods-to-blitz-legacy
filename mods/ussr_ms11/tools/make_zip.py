@@ -26,6 +26,7 @@ FILES = [
     ("variants/fire_mode_1/ussr_ms11.tres", "variants/fire_mode_1/ussr_ms11.tres"),
     ("variants/fire_mode_3/ussr_ms11.tres", "variants/fire_mode_3/ussr_ms11.tres"),
     ("variants/no_drum/ussr_ms11.tres", "variants/no_drum/ussr_ms11.tres"),
+    ("variants/probe_gun_name/ussr_ms11.tres", "variants/probe_gun_name/ussr_ms11.tres"),
 ]
 
 
