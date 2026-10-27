@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SCG/SC2 Viewer — WoT Blitz (DAVA)</title>
+<style>
+/*@@STYLE@@*/
+</style>
+</head>
+<body>
+<div id="app">
+  <header id="topbar">
+    <div class="brand">SCG/SC2 Viewer</div>
+    <button id="btnFiles" title="Выбрать .sc2 / .scg / .dvpl и текстуры">📄 Открыть файлы…</button>
+    <button id="btnFolder" title="Выбрать папку (например Data/3d/Tanks/USSR) — текстуры найдутся сами">📁 Открыть папку…</button>
+    <select id="modelSelect" title="Модели в загруженных файлах"><option value="">— модель —</option></select>
+    <span class="sep"></span>
+    <label>LOD <select id="lodSelect"></select></label>
+    <label><input type="checkbox" id="optTextures" checked> Текстуры</label>
+    <label><input type="checkbox" id="optWire"> Каркас</label>
+    <label><input type="checkbox" id="optService"> Служебные</label>
+    <label><input type="checkbox" id="optGrid" checked> Сетка</label>
+    <label><input type="checkbox" id="optCull"> Отсечение</label>
+    <span class="sep"></span>
+    <button id="btnGLB" title="Экспорт того, что видно, в .glb (Blender / Godot)">⬇ GLB</button>
+    <button id="btnOBJ" title="Экспорт геометрии в .obj">⬇ OBJ</button>
+    <button id="btnJSON" title="Сырые данные файла (KeyedArchive) в JSON">⬇ JSON</button>
+    <button id="btnShot" title="Снимок экрана в PNG">📷</button>
+    <button id="btnHelp" title="Справка">?</button>
+    <input type="file" id="inFiles" multiple hidden>
+    <input type="file" id="inFolder" webkitdirectory directory multiple hidden>
+  </header>
+  <aside id="side">
+    <section>
+      <h3>Сцена <small id="treeStats"></small></h3>
+      <div class="treebar">
+        <button id="btnAllOn" title="Показать всё">все</button>
+        <button id="btnAllOff" title="Скрыть всё">ничего</button>
+        <input id="treeFilter" placeholder="фильтр по имени…">
+      </div>
+      <div id="tree" class="tree"><div class="hint">Файлы не загружены</div></div>
+    </section>
+    <section id="propsSection">
+      <h3>Свойства</h3>
+      <div id="props" class="props"><div class="hint">Щёлкните по детали в окне или в дереве</div></div>
+    </section>
+    <section>
+      <h3>Материалы и текстуры <small id="texStats"></small></h3>
+      <div id="materials" class="props"></div>
+    </section>
+  </aside>
+  <main id="view">
+    <canvas id="gl"></canvas>
+    <div id="drop" class="drop">
+      <div class="dropbox">
+        <div class="big">Перетащите сюда <b>.sc2</b> / <b>.scg</b> (можно <b>.dvpl</b>)<br>или целую папку с текстурами</div>
+        <div class="small">Модели WoT Blitz лежат в <code>Data/3d/Tanks/&lt;Нация&gt;/</code>, текстуры — в <code>images/</code> рядом.<br>
+        Файлы никуда не отправляются: всё читается прямо в браузере.</div>
+      </div>
+    </div>
+    <div id="views" class="views">
+      <button data-view="front">Спереди</button><button data-view="side">Сбоку</button><button data-view="top">Сверху</button><button data-view="iso">3/4</button><button data-view="fit" title="F">Центр</button>
+    </div>
+    <div id="status" class="status"></div>
+    <div id="toast" class="toast"></div>
+  </main>
+</div>
+<div id="help" class="modal" hidden>
+  <div class="modalbox">
+    <h2>Как пользоваться</h2>
+    <ul>
+      <li><b>Открыть:</b> перетащите файлы/папку в окно или нажмите «Открыть файлы / папку». Нужен <code>.sc2</code> (иерархия, материалы) и парный <code>.scg</code> (геометрия) — у новых версий игры геометрия лежит в <code>.scg</code>, у старых модов — прямо в <code>.sc2</code>. Сжатые <code>.dvpl</code> распаковываются автоматически.</li>
+      <li><b>Текстуры</b> ищутся по путям из материалов (<code>images/Имя.tex</code> → <code>Имя.dx11.dds(.dvpl)</code>, <code>.pvr</code>, <code>.png</code>, <code>.webp</code>). Проще всего открыть всю папку нации.</li>
+      <li><b>Мышь:</b> левая — вращать, правая или Shift+левая — сдвигать, колесо — приближать, щелчок — выбрать деталь, двойной щелчок — центрировать на ней. <b>F</b> — показать всё, <b>W</b> — каркас, <b>T</b> — текстуры.</li>
+      <li><b>LOD</b> — уровень детализации (0 — самый подробный). <b>Служебные</b> — точки крепления <code>HP_*</code>, объёмы теней, «crash»-версии деталей.</li>
+      <li><b>Экспорт GLB</b> сохраняет видимые детали с иерархией (hull / turret / gun) и текстурами — открывается в Blender и Godot. Оси переводятся из Z-вверх (DAVA) в Y-вверх (glTF).</li>
+    </ul>
+    <p class="small">Формат: DAVA SceneFileV2 (SFV2) + SCPG, KeyedArchive v1/v2. Проверено на SC2 версий 23, 41, 43.</p>
+    <button id="helpClose">Закрыть</button>
+  </div>
+</div>
+<script>
+/*@@CORE@@*/
+</script>
+<script>
+/*@@VIEWER@@*/
+</script>
+</body>
+</html>

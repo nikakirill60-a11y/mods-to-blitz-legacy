@@ -1,0 +1,18 @@
+# Сборочные дубликаты модов в структуре репозитория (в PR лежат install-версии)
+poland_60tp.zip
+germany_waffentrager_e110.zip
+other_lv1300.zip
+ussr_ms11.zip
+
+# Python
+__pycache__/
+*.pyc
+
+# Служебные файлы ОС и редакторов
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Godot импортированные кэши (в модах не нужны)
+.godot/
