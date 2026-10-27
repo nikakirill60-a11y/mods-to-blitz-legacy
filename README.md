@@ -30,10 +30,12 @@ mods/<название мода>/
 `.assets` (Unity), `.pck` / `.exe` (Godot). Показывает, что внутри, ищет слова (кнопка «Барабан»),
 выводит строки и hex. Описание — в [`tools/README.md`](tools/README.md).
 
-[`tools/scgviewer/`](tools/scgviewer) — просмотр 3D-моделей WoT Blitz `.sc2` / `.scg` (и сжатых `.dvpl`):
-`scgviewer.html` открывается двойным щелчком в браузере, в него перетаскивается папка с моделью — видно
-детали, LOD, материалы и текстуры, есть экспорт в GLB / OBJ. `scgtool.py` — то же из командной строки
-(сводка, дерево, экспорт OBJ, распаковка `.dvpl`). Описание — в [`tools/scgviewer/README.md`](tools/scgviewer/README.md).
+**Просмотрщик моделей `.sc2` / `.scg` / `.dvpl`** — скачать одним архивом:
+[`scgviewer.zip`](https://github.com/nikakirill60-a11y/mods-to-blitz-legacy/raw/arena/6bca88e5-mods-to-blitz-legacy/scgviewer.zip).
+Распаковать, запустить `SCGViewer.bat` (или перетащить на него модель / папку) — откроется окно с 3D-моделью:
+детали, LOD, материалы, текстуры, экспорт в GLB / OBJ. Без Python работает `scgviewer.html` в браузере.
+Консольный `scgtool.py`: сводка, дерево, экспорт OBJ, распаковка `.dvpl`.
+Описание — в [`tools/scgviewer/README.md`](tools/scgviewer/README.md).
 
 [`docs/tres_fields.md`](docs/tres_fields.md) — что известно о полях `.tres` танка: номера наций, новые поля,
 барабан.

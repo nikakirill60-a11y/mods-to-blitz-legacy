@@ -1956,8 +1956,25 @@ if (initGL()) { buildGrid(5); requestDraw(); }
 bindUI();
 window.SCGViewer = { S, openModel, addFiles, exportGLB, setView, select };
 // ?load=a.sc2,b.scg,images/x.dds  (relative URLs; handy for a local web server)
-const q = new URLSearchParams(location.search).get("load");
+const params = new URLSearchParams(location.search);
+const q = params.get("load");
 if (q) addFiles(q.split(",").filter(Boolean).map(u => ({ path: decodeURIComponent(u.split("?")[0]), handle: u })));
+// ?list=/api/list  -> file list from the desktop launcher (SCGViewer.pyw)
+const L = params.get("list");
+if (L) {
+  fetch(L).then(r => r.json()).then(j => {
+    if (!j.files || !j.files.length) return;
+    const enc = p => "/f/" + p.split("/").map(encodeURIComponent).join("/");
+    if (j.root) document.title = j.root + " — SCG/SC2 Viewer";
+    return addFiles(j.files.map(p => ({ path: p, handle: enc(p) })));
+  }).catch(e => toast("Список файлов: " + (e.message || e), true));
+}
+// desktop launcher keeps running while the window is open
+if (params.get("app")) {
+  const ping = () => fetch("/api/ping", { cache: "no-store" }).catch(() => {});
+  ping(); setInterval(ping, 5000);
+  window.addEventListener("pagehide", () => { try { navigator.sendBeacon("/api/bye", "1"); } catch (e) { /* ignore */ } });
+}
 })();
 
 </script>
