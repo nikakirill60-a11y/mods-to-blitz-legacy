@@ -1,0 +1,1965 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SCG/SC2 Viewer — WoT Blitz (DAVA)</title>
+<style>
+:root { --bg:#1b1e23; --panel:#23272e; --panel2:#2b3038; --text:#d8dde5; --dim:#8a93a0; --acc:#e8a33c; --bad:#e06060; --ok:#6cc070; }
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); font: 13px/1.35 "Segoe UI", Roboto, Arial, sans-serif; }
+#app { display: grid; grid-template-columns: 340px 1fr; grid-template-rows: auto 1fr; height: 100vh; }
+#topbar { grid-column: 1 / 3; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 6px 8px; background: var(--panel); border-bottom: 1px solid #000; }
+#topbar .brand { font-weight: 700; color: var(--acc); margin-right: 6px; }
+#topbar label { display: inline-flex; align-items: center; gap: 3px; white-space: nowrap; }
+#topbar .sep { width: 1px; height: 20px; background: #444; margin: 0 4px; }
+button, select, input { background: var(--panel2); color: var(--text); border: 1px solid #444b55; border-radius: 4px; padding: 3px 8px; font: inherit; }
+button:hover { border-color: var(--acc); cursor: pointer; }
+select { max-width: 280px; }
+#side { overflow: auto; background: var(--panel); border-right: 1px solid #000; }
+#side section { border-bottom: 1px solid #111; padding: 6px 8px; }
+#side h3 { margin: 2px 0 6px; font-size: 13px; color: var(--acc); }
+#side h3 small { color: var(--dim); font-weight: normal; }
+.treebar { display: flex; gap: 4px; margin-bottom: 4px; }
+.treebar input { flex: 1; min-width: 0; }
+.tree { max-height: 42vh; overflow: auto; font-size: 12px; }
+.tree ul { list-style: none; margin: 0; padding-left: 14px; }
+.tree > ul { padding-left: 0; }
+.tree li { white-space: nowrap; }
+.tree .row { display: flex; align-items: center; gap: 3px; padding: 1px 2px; border-radius: 3px; cursor: pointer; }
+.tree .row:hover { background: #343a44; }
+.tree .row.sel { background: #5a4520; }
+.tree .tw { width: 12px; color: var(--dim); text-align: center; flex: none; }
+.tree .badge { color: var(--dim); font-size: 11px; }
+.tree .svc { color: #7d8794; font-style: italic; }
+.tree .hidden-row { display: none; }
+.props { font-size: 12px; max-height: 40vh; overflow: auto; }
+.props table { border-collapse: collapse; width: 100%; }
+.props td, .props th { border-bottom: 1px solid #333; padding: 2px 4px; text-align: left; vertical-align: top; }
+.props th { color: var(--dim); font-weight: normal; }
+.props pre { background: #15171b; padding: 6px; max-height: 300px; overflow: auto; font-size: 11px; white-space: pre; }
+.props .ok { color: var(--ok); } .props .bad { color: var(--bad); }
+.hint { color: var(--dim); font-style: italic; }
+code { background: #15171b; padding: 0 3px; border-radius: 3px; }
+#view { position: relative; overflow: hidden; }
+#gl { width: 100%; height: 100%; display: block; outline: none; }
+.drop { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; pointer-events: none; }
+.drop .dropbox { border: 2px dashed #4a525e; border-radius: 12px; padding: 30px 40px; text-align: center; background: rgba(27,30,35,.85); max-width: 640px; }
+.drop .big { font-size: 18px; margin-bottom: 10px; }
+.drop .small, .small { color: var(--dim); font-size: 12px; }
+.drop.over .dropbox { border-color: var(--acc); }
+.drop.loaded { display: none; }
+.drop.loaded.over { display: flex; }
+.views { position: absolute; top: 8px; right: 8px; display: flex; gap: 3px; }
+.views button { opacity: .85; padding: 2px 6px; font-size: 12px; }
+.status { position: absolute; left: 8px; bottom: 6px; font-size: 12px; color: var(--dim); text-shadow: 0 1px 2px #000; pointer-events: none; white-space: pre; }
+.toast { position: absolute; left: 50%; top: 12px; transform: translateX(-50%); background: #3a2a10; border: 1px solid var(--acc); color: #ffd9a0; padding: 6px 12px; border-radius: 6px; display: none; max-width: 80%; white-space: pre-wrap; }
+.toast.err { background: #3a1515; border-color: var(--bad); color: #ffc0c0; }
+.modal { position: fixed; inset: 0; background: rgba(0,0,0,.6); display: flex; align-items: center; justify-content: center; z-index: 10; }
+.modal[hidden] { display: none; }
+.modalbox { background: var(--panel); border: 1px solid #444; border-radius: 8px; padding: 16px 22px; max-width: 720px; }
+.modalbox h2 { margin-top: 0; color: var(--acc); font-size: 17px; }
+.modalbox li { margin-bottom: 6px; }
+@media (max-width: 800px) { #app { grid-template-columns: 1fr; grid-template-rows: auto 45vh 1fr; } #side { order: 3; } }
+
+</style>
+</head>
+<body>
+<div id="app">
+  <header id="topbar">
+    <div class="brand">SCG/SC2 Viewer</div>
+    <button id="btnFiles" title="Выбрать .sc2 / .scg / .dvpl и текстуры">📄 Открыть файлы…</button>
+    <button id="btnFolder" title="Выбрать папку (например Data/3d/Tanks/USSR) — текстуры найдутся сами">📁 Открыть папку…</button>
+    <select id="modelSelect" title="Модели в загруженных файлах"><option value="">— модель —</option></select>
+    <span class="sep"></span>
+    <label>LOD <select id="lodSelect"></select></label>
+    <label><input type="checkbox" id="optTextures" checked> Текстуры</label>
+    <label><input type="checkbox" id="optWire"> Каркас</label>
+    <label><input type="checkbox" id="optService"> Служебные</label>
+    <label><input type="checkbox" id="optGrid" checked> Сетка</label>
+    <label><input type="checkbox" id="optCull"> Отсечение</label>
+    <span class="sep"></span>
+    <button id="btnGLB" title="Экспорт того, что видно, в .glb (Blender / Godot)">⬇ GLB</button>
+    <button id="btnOBJ" title="Экспорт геометрии в .obj">⬇ OBJ</button>
+    <button id="btnJSON" title="Сырые данные файла (KeyedArchive) в JSON">⬇ JSON</button>
+    <button id="btnShot" title="Снимок экрана в PNG">📷</button>
+    <button id="btnHelp" title="Справка">?</button>
+    <input type="file" id="inFiles" multiple hidden>
+    <input type="file" id="inFolder" webkitdirectory directory multiple hidden>
+  </header>
+  <aside id="side">
+    <section>
+      <h3>Сцена <small id="treeStats"></small></h3>
+      <div class="treebar">
+        <button id="btnAllOn" title="Показать всё">все</button>
+        <button id="btnAllOff" title="Скрыть всё">ничего</button>
+        <input id="treeFilter" placeholder="фильтр по имени…">
+      </div>
+      <div id="tree" class="tree"><div class="hint">Файлы не загружены</div></div>
+    </section>
+    <section id="propsSection">
+      <h3>Свойства</h3>
+      <div id="props" class="props"><div class="hint">Щёлкните по детали в окне или в дереве</div></div>
+    </section>
+    <section>
+      <h3>Материалы и текстуры <small id="texStats"></small></h3>
+      <div id="materials" class="props"></div>
+    </section>
+  </aside>
+  <main id="view">
+    <canvas id="gl"></canvas>
+    <div id="drop" class="drop">
+      <div class="dropbox">
+        <div class="big">Перетащите сюда <b>.sc2</b> / <b>.scg</b> (можно <b>.dvpl</b>)<br>или целую папку с текстурами</div>
+        <div class="small">Модели WoT Blitz лежат в <code>Data/3d/Tanks/&lt;Нация&gt;/</code>, текстуры — в <code>images/</code> рядом.<br>
+        Файлы никуда не отправляются: всё читается прямо в браузере.</div>
+      </div>
+    </div>
+    <div id="views" class="views">
+      <button data-view="front">Спереди</button><button data-view="side">Сбоку</button><button data-view="top">Сверху</button><button data-view="iso">3/4</button><button data-view="fit" title="F">Центр</button>
+    </div>
+    <div id="status" class="status"></div>
+    <div id="toast" class="toast"></div>
+  </main>
+</div>
+<div id="help" class="modal" hidden>
+  <div class="modalbox">
+    <h2>Как пользоваться</h2>
+    <ul>
+      <li><b>Открыть:</b> перетащите файлы/папку в окно или нажмите «Открыть файлы / папку». Нужен <code>.sc2</code> (иерархия, материалы) и парный <code>.scg</code> (геометрия) — у новых версий игры геометрия лежит в <code>.scg</code>, у старых модов — прямо в <code>.sc2</code>. Сжатые <code>.dvpl</code> распаковываются автоматически.</li>
+      <li><b>Текстуры</b> ищутся по путям из материалов (<code>images/Имя.tex</code> → <code>Имя.dx11.dds(.dvpl)</code>, <code>.pvr</code>, <code>.png</code>, <code>.webp</code>). Проще всего открыть всю папку нации.</li>
+      <li><b>Мышь:</b> левая — вращать, правая или Shift+левая — сдвигать, колесо — приближать, щелчок — выбрать деталь, двойной щелчок — центрировать на ней. <b>F</b> — показать всё, <b>W</b> — каркас, <b>T</b> — текстуры.</li>
+      <li><b>LOD</b> — уровень детализации (0 — самый подробный). <b>Служебные</b> — точки крепления <code>HP_*</code>, объёмы теней, «crash»-версии деталей.</li>
+      <li><b>Экспорт GLB</b> сохраняет видимые детали с иерархией (hull / turret / gun) и текстурами — открывается в Blender и Godot. Оси переводятся из Z-вверх (DAVA) в Y-вверх (glTF).</li>
+    </ul>
+    <p class="small">Формат: DAVA SceneFileV2 (SFV2) + SCPG, KeyedArchive v1/v2. Проверено на SC2 версий 23, 41, 43.</p>
+    <button id="helpClose">Закрыть</button>
+  </div>
+</div>
+<script>
+/* ===== DAVA core: DVPL, KeyedArchive, SCG, SC2, scene model, textures =====
+ * No DOM access in this block: it is also loaded by node for tests
+ * (tools/scgviewer/test_core.js).  Port of tools/scgviewer/dava.py.
+ */
+"use strict";
+const Dava = (() => {
+
+class DavaError extends Error {}
+
+// ---------------------------------------------------------------- DVPL / LZ4
+function lz4Block(src, outSize) {
+  const out = new Uint8Array(outSize);
+  let i = 0, o = 0;
+  const n = src.length;
+  while (i < n) {
+    const token = src[i++];
+    let lit = token >> 4;
+    if (lit === 15) { let b; do { b = src[i++]; lit += b; } while (b === 255); }
+    if (o + lit > outSize) throw new DavaError("LZ4: output overflow");
+    out.set(src.subarray(i, i + lit), o); i += lit; o += lit;
+    if (i >= n) break;
+    const off = src[i] | (src[i + 1] << 8); i += 2;
+    if (off === 0 || off > o) throw new DavaError("LZ4: bad match offset " + off);
+    let ml = token & 15;
+    if (ml === 15) { let b; do { b = src[i++]; ml += b; } while (b === 255); }
+    ml += 4;
+    if (o + ml > outSize) throw new DavaError("LZ4: output overflow");
+    let s = o - off;
+    for (let k = 0; k < ml; k++) out[o++] = out[s++];
+  }
+  if (o !== outSize) throw new DavaError(`LZ4: expected ${outSize} bytes, got ${o}`);
+  return out;
+}
+
+let CRC_TABLE = null;
+function crc32(u8) {
+  if (!CRC_TABLE) {
+    CRC_TABLE = new Uint32Array(256);
+    for (let n = 0; n < 256; n++) {
+      let c = n;
+      for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1;
+      CRC_TABLE[n] = c >>> 0;
+    }
+  }
+  let c = 0xFFFFFFFF;
+  for (let i = 0; i < u8.length; i++) c = CRC_TABLE[(c ^ u8[i]) & 255] ^ (c >>> 8);
+  return (c ^ 0xFFFFFFFF) >>> 0;
+}
+
+function isDVPL(u8) {
+  const n = u8.length;
+  return n >= 20 && u8[n - 4] === 0x44 && u8[n - 3] === 0x56 && u8[n - 2] === 0x50 && u8[n - 1] === 0x4C;
+}
+
+function decodeDVPL(u8, checkCrc = true) {
+  if (!isDVPL(u8)) return u8;
+  const dv = new DataView(u8.buffer, u8.byteOffset + u8.length - 20, 20);
+  const usize = dv.getUint32(0, true), psize = dv.getUint32(4, true);
+  const crc = dv.getUint32(8, true), kind = dv.getUint32(12, true) & 255;
+  const payload = u8.subarray(0, u8.length - 20);
+  if (psize !== payload.length) throw new DavaError(`DVPL: packed size ${psize} != ${payload.length}`);
+  if (checkCrc && crc32(payload) !== crc) throw new DavaError("DVPL: CRC32 mismatch");
+  if (kind === 0) return payload;
+  if (kind === 1 || kind === 2) return lz4Block(payload, usize);
+  throw new DavaError("DVPL: unknown compression type " + kind);
+}
+
+// ---------------------------------------------------------------- reader
+const UTF8 = new TextDecoder("utf-8");
+const UTF16 = new TextDecoder("utf-16le");
+
+class Reader {
+  constructor(u8, offset = 0, end = u8.length) {
+    this.u8 = u8; this.o = offset; this.end = end;
+    this.dv = new DataView(u8.buffer, u8.byteOffset, u8.byteLength);
+  }
+  need(n) { if (this.o + n > this.end) throw new DavaError(`unexpected end of data at 0x${this.o.toString(16)} (need ${n})`); }
+  take(n) { this.need(n); const s = this.u8.subarray(this.o, this.o + n); this.o += n; return s; }
+  u8v() { this.need(1); return this.u8[this.o++]; }
+  i8() { this.need(1); return this.dv.getInt8(this.o++); }
+  u16() { this.need(2); const v = this.dv.getUint16(this.o, true); this.o += 2; return v; }
+  i16() { this.need(2); const v = this.dv.getInt16(this.o, true); this.o += 2; return v; }
+  u32() { this.need(4); const v = this.dv.getUint32(this.o, true); this.o += 4; return v; }
+  i32() { this.need(4); const v = this.dv.getInt32(this.o, true); this.o += 4; return v; }
+  i64() { this.need(8); const v = this.dv.getBigInt64(this.o, true); this.o += 8; return v; }
+  u64() { this.need(8); const v = this.dv.getBigUint64(this.o, true); this.o += 8; return v; }
+  f32() { this.need(4); const v = this.dv.getFloat32(this.o, true); this.o += 4; return v; }
+  f64() { this.need(8); const v = this.dv.getFloat64(this.o, true); this.o += 8; return v; }
+  floats(n) { const a = new Array(n); for (let i = 0; i < n; i++) a[i] = this.f32(); return a; }
+  ascii(n) { return cstr(this.take(n)); }
+}
+
+function cstr(b) {
+  let z = b.indexOf(0);
+  if (z >= 0) b = b.subarray(0, z);
+  return UTF8.decode(b);
+}
+
+// ---------------------------------------------------------------- KeyedArchive
+const T = { NONE: 0, BOOL: 1, INT32: 2, FLOAT: 3, STRING: 4, WSTRING: 5, BYTES: 6, UINT32: 7,
+  KA: 8, INT64: 9, UINT64: 10, V2: 11, V3: 12, V4: 13, M2: 14, M3: 15, M4: 16, COLOR: 17,
+  FASTNAME: 18, AABB: 19, FILEPATH: 20, F64: 21, INT8: 22, UINT8: 23, INT16: 24, UINT16: 25,
+  ARRAY: 27, TRANSFORM: 29 };
+
+function lookup(table, idx) {
+  if (!table) throw new DavaError("fast-name reference without string table");
+  const s = table.get(idx);
+  return s === undefined ? `<fastname #${idx}>` : s;
+}
+
+function readValue(r, t, table) {
+  switch (t) {
+    case T.NONE: return null;
+    case T.BOOL: return r.u8v() !== 0;
+    case T.INT32: return r.i32();
+    case T.UINT32: return r.u32();
+    case T.FLOAT: return r.f32();
+    case T.STRING: case T.FASTNAME: case T.FILEPATH:
+      if (table) return lookup(table, r.u32());
+      return r.ascii(r.u32());
+    case T.WSTRING:
+      if (table) return lookup(table, r.u32());
+      return UTF16.decode(r.take(r.u32() * 2));
+    case T.BYTES: return r.take(r.u32());
+    case T.KA: {
+      const size = r.u32();
+      const sub = new Reader(r.u8, r.o, r.o + size);
+      r.need(size); r.o += size;
+      return size ? readArchive(sub, table) : {};
+    }
+    case T.INT64: return r.i64();
+    case T.UINT64: return r.u64();
+    case T.V2: return r.floats(2);
+    case T.V3: return r.floats(3);
+    case T.V4: case T.COLOR: return r.floats(4);
+    case T.M2: return r.floats(4);
+    case T.M3: return r.floats(9);
+    case T.M4: return r.floats(16);
+    case T.AABB: { const f = r.floats(6); return { min: f.slice(0, 3), max: f.slice(3) }; }
+    case T.F64: return r.f64();
+    case T.INT8: return r.i8();
+    case T.UINT8: return r.u8v();
+    case T.INT16: return r.i16();
+    case T.UINT16: return r.u16();
+    case T.ARRAY: { const n = r.u32(); const a = new Array(n); for (let i = 0; i < n; i++) a[i] = readValue(r, r.u8v(), table); return a; }
+    case T.TRANSFORM: { const f = r.floats(10); return { position: f.slice(0, 3), scale: f.slice(3, 6), rotation: f.slice(6) }; }
+  }
+  throw new DavaError(`unknown KA value type ${t} at 0x${(r.o - 1).toString(16)}`);
+}
+
+function readArchive(r, table = null) {
+  const start = r.o;
+  const sig = r.take(2);
+  if (sig[0] !== 0x4B || sig[1] !== 0x41) throw new DavaError(`no KA signature at 0x${start.toString(16)}`);
+  const ver = r.u16();
+  const out = {};
+  if (ver === 0x0001) {
+    const n = r.u32();
+    for (let i = 0; i < n; i++) {
+      const key = readValue(r, r.u8v(), null);
+      out[String(key)] = readValue(r, r.u8v(), null);
+    }
+    return out;
+  }
+  if (ver === 0xFF02) return out;
+  if (ver === 0x0002) {
+    const n = r.u32();
+    const names = new Array(n);
+    for (let i = 0; i < n; i++) names[i] = r.ascii(r.u16());
+    table = new Map();
+    for (let i = 0; i < n; i++) table.set(r.u32(), names[i]);
+  } else if (ver !== 0x0102) {
+    throw new DavaError(`unsupported KA version 0x${ver.toString(16)} at 0x${start.toString(16)}`);
+  }
+  if (!table) throw new DavaError("KA 0x0102 without parent string table");
+  const n = r.u32();
+  for (let i = 0; i < n; i++) {
+    const key = lookup(table, r.u32());
+    out[key] = readValue(r, r.u8v(), table);
+  }
+  return out;
+}
+
+/** #id / rb.datasource / rb.nmatname -> decimal string key (u64) or null */
+function idKey(v) {
+  if (typeof v === "bigint") return BigInt.asUintN(64, v).toString();
+  if (typeof v === "number" && Number.isInteger(v)) return BigInt.asUintN(64, BigInt(v)).toString();
+  if (v instanceof Uint8Array && v.length > 0 && v.length <= 8) {
+    let x = 0n;
+    for (let i = v.length - 1; i >= 0; i--) x = (x << 8n) | BigInt(v[i]);
+    return x.toString();
+  }
+  return null;
+}
+
+// ---------------------------------------------------------------- geometry
+const VERTEX_ATTRS = [
+  [0, "position", 3], [1, "normal", 3], [2, "color", 1], [3, "uv0", 2], [4, "uv1", 2],
+  [5, "uv2", 2], [6, "uv3", 2], [7, "tangent", 3], [8, "binormal", 3], [9, "hardJoint", 1],
+  [10, "pivot4", 4], [11, "pivotOld", 3], [12, "flexibility", 1], [13, "angleSinCos", 2],
+  [14, "jointIndex", 4], [15, "jointWeight", 4], [16, "cubeuv0", 3], [17, "cubeuv1", 3],
+  [18, "cubeuv2", 3], [19, "cubeuv3", 3],
+];
+const PRIM_NAMES = { 1: "треугольники", 2: "полоса треугольников", 10: "линии" };
+
+function vertexLayout(fmt) {
+  const lay = {}; const names = []; let off = 0;
+  for (const [bit, name, cnt] of VERTEX_ATTRS) {
+    if (fmt & (1 << bit)) { lay[name] = { offset: off, count: cnt }; names.push(name); off += cnt; }
+  }
+  return { attrs: lay, names, stride: off * 4 };
+}
+
+class Mesh {
+  constructor(pg, source) {
+    this.raw = pg;
+    this.source = source;              // "scg" | "sc2"
+    this.id = idKey(pg["#id"]);
+    this.format = Number(pg.vertexFormat || 0);
+    this.vcount = Number(pg.vertexCount || 0);
+    this.prim = Number(pg.rhi_primitiveType ?? pg.primitiveType ?? 1) || 1;
+    const L = vertexLayout(this.format);
+    this.layout = L.attrs; this.attrNames = L.names; this.stride = L.stride;
+    this.warning = "";
+    const vb = pg.vertices instanceof Uint8Array ? pg.vertices : new Uint8Array(0);
+    if (this.vcount && vb.length !== this.stride * this.vcount) {
+      const real = Math.floor(vb.length / this.vcount);
+      this.warning = `размер вершины: по формату ${this.stride} байт, по данным ${real}`;
+      this.stride = real;
+      // keep only attributes that still fit
+      for (const k of Object.keys(this.layout)) {
+        const a = this.layout[k];
+        if ((a.offset + a.count) * 4 > real) delete this.layout[k];
+      }
+    }
+    const usable = vb.length - (vb.length % 4);
+    this.floats = new Float32Array(vb.slice(0, usable).buffer);   // copy => aligned
+    const icount = Number(pg.indexCount || 0);
+    const ifmt = Number(pg.indexFormat || 0);
+    const ib = pg.indices instanceof Uint8Array ? pg.indices : new Uint8Array(0);
+    const isz = ifmt === 0 ? 2 : 4;
+    const ibytes = ib.slice(0, Math.min(ib.length, icount * isz) - ((Math.min(ib.length, icount * isz)) % isz));
+    let idx = ifmt === 0 ? new Uint16Array(ibytes.buffer) : new Uint32Array(ibytes.buffer);
+    if (this.prim === 2) {             // strip -> list
+      const tri = [];
+      for (let k = 0; k + 2 < idx.length; k++) {
+        const a = idx[k], b = idx[k + 1], c = idx[k + 2];
+        if (a === b || b === c || a === c) continue;
+        if (k % 2 === 0) tri.push(a, b, c); else tri.push(b, a, c);
+      }
+      idx = Uint32Array.from(tri);
+      this.prim = 1;
+    }
+    this.indices = idx;
+    this._bbox = null;
+  }
+  get triangles() { return this.prim === 1 ? Math.floor(this.indices.length / 3) : 0; }
+  get lines() { return this.prim === 10 ? Math.floor(this.indices.length / 2) : 0; }
+  attr(name) {
+    const a = this.layout[name];
+    if (!a) return null;
+    const s = this.stride / 4, out = new Float32Array(this.vcount * a.count);
+    for (let i = 0; i < this.vcount; i++)
+      for (let c = 0; c < a.count; c++) out[i * a.count + c] = this.floats[i * s + a.offset + c];
+    return out;
+  }
+  bbox() {
+    if (this._bbox) return this._bbox;
+    const mn = [Infinity, Infinity, Infinity], mx = [-Infinity, -Infinity, -Infinity];
+    const s = this.stride / 4;
+    for (let i = 0; i < this.vcount; i++)
+      for (let c = 0; c < 3; c++) {
+        const v = this.floats[i * s + c];
+        if (!Number.isFinite(v)) continue;
+        if (v < mn[c]) mn[c] = v; if (v > mx[c]) mx[c] = v;
+      }
+    return (this._bbox = { min: mn, max: mx });
+  }
+}
+
+function readSCG(u8) {
+  const r = new Reader(u8);
+  if (cstr(r.take(4)) !== "SCPG") throw new DavaError("это не SCG (нет сигнатуры SCPG)");
+  const version = r.u32(), count = r.u32(), count2 = r.u32();
+  const groups = [];
+  for (let i = 0; i < count; i++) groups.push(readArchive(r));
+  return { kind: "scg", version, count, count2, polygonGroups: groups, trailing: r.end - r.o };
+}
+
+// ---------------------------------------------------------------- SC2
+function readLegacyEntity(r) {
+  const node = readArchive(r);
+  const kids = Number(node["#childrenCount"] || 0);
+  if (kids) { node["#hierarchy"] = []; for (let i = 0; i < kids; i++) node["#hierarchy"].push(readLegacyEntity(r)); }
+  return node;
+}
+
+function readSC2(u8) {
+  const r = new Reader(u8);
+  if (cstr(r.take(4)) !== "SFV2") throw new DavaError("это не SC2 (нет сигнатуры SFV2)");
+  const version = r.u32(), nodeCount = r.u32();
+  const tags = version >= 14 ? readArchive(r) : {};
+  let fileType = null;
+  if (version >= 10) {
+    const size = r.u32(); const blob = r.take(size);
+    if (size >= 4) fileType = new DataView(blob.buffer, blob.byteOffset, 4).getUint32(0, true);
+  }
+  const scene = { kind: "sc2", version, nodeCount, versionTags: tags, fileType };
+  const modern = r.o + 4 <= r.end && r.u8[r.o] === 0x4B && r.u8[r.o + 1] === 0x41 &&
+    r.dv.getUint16(r.o + 2, true) === 2;
+  if (modern) {
+    const body = readArchive(r);
+    scene.layout = "modern";
+    scene.dataNodes = body["#dataNodes"] || [];
+    scene.hierarchy = body["#hierarchy"] || [];
+    scene.sceneComponents = body["#sceneComponents"] || {};
+  } else {
+    scene.layout = "legacy";
+    scene.dataNodes = [];
+    if (version >= 2) { const n = r.u32(); for (let i = 0; i < n; i++) scene.dataNodes.push(readArchive(r)); }
+    scene.hierarchy = [];
+    for (let i = 0; i < nodeCount; i++) scene.hierarchy.push(readLegacyEntity(r));
+  }
+  scene.trailing = r.end - r.o;
+  return scene;
+}
+
+// ---------------------------------------------------------------- math (DAVA row-major == GL column-major)
+const IDENTITY = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
+
+/** DAVA row-vector product A*B (apply A first, then B). */
+function matMul(a, b) {
+  const o = new Array(16);
+  for (let i = 0; i < 4; i++)
+    for (let j = 0; j < 4; j++) {
+      let s = 0;
+      for (let k = 0; k < 4; k++) s += a[i * 4 + k] * b[k * 4 + j];
+      o[i * 4 + j] = s;
+    }
+  return o;
+}
+
+function trsMatrix(t, q, s) {
+  let [x, y, z, w] = q;
+  const n = Math.hypot(x, y, z, w) || 1; x /= n; y /= n; z /= n; w /= n;
+  const r = [
+    [1 - 2 * (y * y + z * z), 2 * (x * y + z * w), 2 * (x * z - y * w)],
+    [2 * (x * y - z * w), 1 - 2 * (x * x + z * z), 2 * (y * z + x * w)],
+    [2 * (x * z + y * w), 2 * (y * z - x * w), 1 - 2 * (x * x + y * y)],
+  ];
+  const m = [];
+  for (let i = 0; i < 3; i++) m.push(r[i][0] * s[i], r[i][1] * s[i], r[i][2] * s[i], 0);
+  m.push(t[0], t[1], t[2], 1);
+  return m;
+}
+
+function transformPoint(m, x, y, z) {
+  return [x * m[0] + y * m[4] + z * m[8] + m[12], x * m[1] + y * m[5] + z * m[9] + m[13], x * m[2] + y * m[6] + z * m[10] + m[14]];
+}
+
+// ---------------------------------------------------------------- scene model
+function components(entity) {
+  const comps = entity.components;
+  if (!comps || typeof comps !== "object") return [];
+  const out = [];
+  if (Number.isInteger(comps.count)) {
+    for (let i = 0; i < comps.count; i++) {
+      const c = comps[String(i).padStart(4, "0")];
+      if (c && typeof c === "object" && !(c instanceof Uint8Array)) out.push(c);
+    }
+  }
+  if (!out.length) for (const v of Object.values(comps)) if (v && typeof v === "object" && !Array.isArray(v) && !(v instanceof Uint8Array)) out.push(v);
+  return out;
+}
+function component(entity, typename) {
+  return components(entity).find(c => c["comp.typename"] === typename) || null;
+}
+
+function localMatrix(entity) {
+  const tc = component(entity, "TransformComponent");
+  if (tc) {
+    if ("tc.localTranslation" in tc || "tc.localRotation" in tc)
+      return trsMatrix(tc["tc.localTranslation"] || [0, 0, 0], tc["tc.localRotation"] || [0, 0, 0, 1], tc["tc.localScale"] || [1, 1, 1]);
+    if (Array.isArray(tc["tc.localMatrix"]) && tc["tc.localMatrix"].length === 16) return tc["tc.localMatrix"].slice();
+  }
+  for (const k of ["localTransform", "transform"]) if (Array.isArray(entity[k]) && entity[k].length === 16) return entity[k].slice();
+  return IDENTITY.slice();
+}
+
+let ENTITY_SEQ = 0;
+class Entity {
+  constructor(raw, parent) {
+    this.uid = ++ENTITY_SEQ;
+    this.raw = raw; this.parent = parent;
+    this.name = String(raw.name ?? raw["##name"] ?? "?");
+    this.local = localMatrix(raw);
+    this.world = parent ? matMul(this.local, parent.world) : this.local;
+    this.batches = [];
+    this.visible = true;
+    const rc = component(raw, "RenderComponent");
+    const ro = rc && rc["rc.renderObj"];
+    this.renderObject = ro && typeof ro === "object" ? ro : null;
+    if (this.renderObject && ro["ro.batches"] && typeof ro["ro.batches"] === "object") {
+      for (const key of Object.keys(ro["ro.batches"]).sort()) {
+        const rb = ro["ro.batches"][key];
+        if (!rb || typeof rb !== "object") continue;
+        let i = parseInt(key, 10); if (!Number.isFinite(i)) i = this.batches.length;
+        const lod = ro[`rb${i}.lodIndex`], sw = ro[`rb${i}.switchIndex`];
+        this.batches.push({ index: i, raw: rb, entity: this,
+          datasource: idKey(rb["rb.datasource"]), material: idKey(rb["rb.nmatname"]),
+          lod: Number.isInteger(lod) ? lod : -1, switch: Number.isInteger(sw) ? sw : -1 });
+      }
+    }
+    this.children = (raw["#hierarchy"] || []).filter(c => c && typeof c === "object").map(c => new Entity(c, this));
+  }
+  *walk() { yield this; for (const c of this.children) yield* c.walk(); }
+  get path() { return this.parent ? this.parent.path + "/" + this.name : this.name; }
+}
+
+class Material {
+  constructor(node) {
+    this.raw = node;
+    this.id = idKey(node["#id"]);
+    this.name = node.materialName || node.name || `mat_${this.id}`;
+    this.parent = idKey(node.parentMaterialKey);
+    this.fx = node.fxName || null;
+    const tex = Object.assign({}, node.textures || {});
+    const cnt = node.configCount;
+    if (Number.isInteger(cnt) && cnt > 0) {
+      const cfgs = [];
+      for (let i = 0; i < cnt; i++) { const c = node[`configArchive_${i}`]; if (c && typeof c === "object") cfgs.push(c); }
+      const pick = cfgs.find(c => c.configName === "Default") || cfgs[0];
+      if (pick) { Object.assign(tex, pick.textures || {}); this.fx = this.fx || pick.fxName || null; }
+    }
+    this.textures = {};
+    for (const [k, v] of Object.entries(tex)) if (typeof v === "string") this.textures[k] = v;
+  }
+}
+
+class Scene {
+  constructor(sc2, scg) {
+    this.sc2 = sc2 || null; this.scg = scg || null;
+    this.meshes = new Map(); this.materials = new Map(); this.otherNodes = [];
+    this.warnings = [];
+    if (scg) for (const pg of scg.polygonGroups) { const m = new Mesh(pg, "scg"); if (m.id !== null) this.meshes.set(m.id, m); }
+    this.roots = [];
+    if (sc2) {
+      for (const dn of sc2.dataNodes) {
+        const kind = dn["##name"];
+        if (kind === "PolygonGroup") { const m = new Mesh(dn, "sc2"); if (m.id !== null) this.meshes.set(m.id, m); }
+        else if (kind === "NMaterial" || "materialName" in dn) { const mt = new Material(dn); if (mt.id !== null) this.materials.set(mt.id, mt); }
+        else this.otherNodes.push(dn);
+      }
+      this.roots = sc2.hierarchy.filter(e => e && typeof e === "object").map(e => new Entity(e, null));
+    }
+    for (const m of this.meshes.values()) if (m.warning) this.warnings.push(`PolygonGroup ${m.id}: ${m.warning}`);
+    let missing = 0;
+    for (const e of this.entities()) for (const b of e.batches) if (b.datasource !== null && !this.meshes.has(b.datasource)) missing++;
+    this.missingGeometry = missing;
+  }
+  *entities() { for (const r of this.roots) yield* r.walk(); }
+  materialChain(mid) {
+    const out = [], seen = new Set();
+    while (mid !== null && mid !== undefined && this.materials.has(mid) && !seen.has(mid)) {
+      seen.add(mid); const m = this.materials.get(mid); out.push(m); mid = m.parent;
+    }
+    return out;
+  }
+  texturesFor(mid) {
+    const tex = {};
+    for (const m of this.materialChain(mid).reverse()) Object.assign(tex, m.textures);
+    return tex;
+  }
+  materialName(mid) {
+    const ch = this.materialChain(mid);
+    return ch.length ? ch[ch.length - 1].name : (mid !== null ? `mat_${mid}` : "нет");
+  }
+  materialFx(mid) {
+    for (const m of this.materialChain(mid)) if (m.fx) return m.fx;
+    return "";
+  }
+  lods() {
+    const s = new Set();
+    for (const e of this.entities()) for (const b of e.batches) s.add(b.lod);
+    return [...s].sort((a, b) => a - b);
+  }
+  /** Helper geometry hidden by default: hard points, shadow volumes, destroyed variants. */
+  isService(entity, batch) {
+    const n = entity ? entity.name : "";
+    if (/^HP_/i.test(n) || /_crash/i.test(n) || /dummy/i.test(n)) return true;
+    if (batch) {
+      const fx = this.materialFx(batch.material), nm = this.materialName(batch.material);
+      if (/ShadowVolume/i.test(fx) || /^Shadow_Material/i.test(nm)) return true;
+    }
+    return false;
+  }
+  /** -> [{entity, batch, mesh}] for the chosen LOD (null = all LODs). */
+  drawList(lod = 0, includeService = false) {
+    const out = [];
+    if (!this.roots.length) {
+      for (const m of this.meshes.values()) out.push({ entity: null, batch: null, mesh: m });
+      return out;
+    }
+    for (const e of this.entities()) {
+      for (const b of e.batches) {
+        if (lod !== null && b.lod !== lod && b.lod !== -1) continue;
+        const m = b.datasource !== null ? this.meshes.get(b.datasource) : null;
+        if (!m) continue;
+        if (!includeService && this.isService(e, b)) continue;
+        out.push({ entity: e, batch: b, mesh: m });
+      }
+    }
+    return out;
+  }
+}
+
+// ---------------------------------------------------------------- textures
+function rgb565(c, out, o) {
+  out[o] = ((c >> 11) & 31) * 255 / 31 | 0;
+  out[o + 1] = ((c >> 5) & 63) * 255 / 63 | 0;
+  out[o + 2] = (c & 31) * 255 / 31 | 0;
+}
+
+function decodeBC1Block(src, p, pal, forceFour) {
+  const c0 = src[p] | (src[p + 1] << 8), c1 = src[p + 2] | (src[p + 3] << 8);
+  rgb565(c0, pal, 0); rgb565(c1, pal, 4); pal[3] = pal[7] = 255;
+  if (c0 > c1 || forceFour) {
+    for (let k = 0; k < 3; k++) { pal[8 + k] = (2 * pal[k] + pal[4 + k]) / 3 | 0; pal[12 + k] = (pal[k] + 2 * pal[4 + k]) / 3 | 0; }
+    pal[11] = pal[15] = 255;
+  } else {
+    for (let k = 0; k < 3; k++) { pal[8 + k] = (pal[k] + pal[4 + k]) >> 1; pal[12 + k] = 0; }
+    pal[11] = 255; pal[15] = 0;
+  }
+}
+
+function decodeAlphaBlock(src, p, out /* 16 values */) {
+  const a0 = src[p], a1 = src[p + 1];
+  const pal = [a0, a1];
+  if (a0 > a1) for (let k = 1; k < 7; k++) pal.push(((7 - k) * a0 + k * a1) / 7 | 0);
+  else { for (let k = 1; k < 5; k++) pal.push(((5 - k) * a0 + k * a1) / 5 | 0); pal.push(0, 255); }
+  const lo = src[p + 2] | (src[p + 3] << 8) | (src[p + 4] << 16);
+  const hi = src[p + 5] | (src[p + 6] << 8) | (src[p + 7] << 16);
+  for (let k = 0; k < 8; k++) out[k] = pal[(lo >> (3 * k)) & 7];
+  for (let k = 0; k < 8; k++) out[8 + k] = pal[(hi >> (3 * k)) & 7];
+}
+
+// ---- BC7 (BPTC).  Port of bcdec by Sergii Kudlai (MIT / Unlicense).
+// Partition tables: one digit per texel = subset (0..2), +3 = anchor (fix-up) texel.
+const BC7_P2 = "3011001100110014300100010001000431110111011101143001001100110114300000010001001430110111011111143001001101111114300000010011011430000000000100143011011111111114300000010111111430000000000101143001011111111114300000001111111430001111111111143000000000001114300010001110111431410001000000003000000040001110314100110001000030410001000000003000100041001110300000004000110031110011001100043041000100010000300010004000110031400110011001103041011001101100300101114110100030001111411100003141000110001110304110011001110031010101010101043000111100001114310110400101101030110011410011003041110000111100310101014010101031101001011010043101101010100104314100111100111030010011410010003041001001001100304110111101110031401001100101103011110011000014311001101001100430000140011000003100114001000000304001110010000030000040011100103000010041100100311011001001001430110110110010043140001110011100304110011100011031101100110010043110001100111004311111101000000430011000111001143000111100110014304100111111000030400010111011103100010001110114";
+const BC7_P3 = "3014001102212225300400115211222130002001521122143225002200110114300000004122112530140011002200253025002211111114301100115211221430000000411122253000111141112225300011412222222530120042001200153112014201120115312204220122012530140112112212253014200152002220300400110112112531140011500122003000112241221125302500220022111431140111022202253004000152212221300000410122012530001100524022103125042200110000301200124122222531101251422101103000014012511221302211024102002531100410200222253011012201520014300020005211222430000002412212253225002200120014301400120022022531200420015001203000114122520000312012015042012031202012450101203011220011520014301111522200001431040101222222253000000051212124302214220022112530250011002200143220125102201224310122522222010430002121512121243104010101012225322501110222011430021412000211153000241221122115322204110111022530021112411200053110041001102225300000002142211531100410222222253022001100410025302211224122002530000000000024153005000100020004322212220222422531042222222222253114201152012220";
+const BC7_W = [null, null, [0, 21, 43, 64], [0, 9, 18, 27, 37, 46, 55, 64], [0, 4, 9, 13, 17, 21, 26, 30, 34, 38, 43, 47, 51, 55, 60, 64]];
+const BC7_CB = [4, 6, 5, 7, 5, 7, 7, 5], BC7_AB = [0, 0, 0, 0, 6, 8, 7, 5];
+const BC7_PBITS = 0b11001011;
+
+function decodeBC7Block(src, p, out, w, h, bx, by) {
+  let pos = 0;
+  const rb = n => { let v = 0; for (let i = 0; i < n; i++, pos++) v |= ((src[p + (pos >> 3)] >> (pos & 7)) & 1) << i; return v; };
+  let mode = 0;
+  while (mode < 8 && rb(1) === 0) mode++;
+  const put = (x, y, r, g, b, a) => {
+    const px = bx * 4 + x, py = by * 4 + y;
+    if (px >= w || py >= h) return;
+    const o = (py * w + px) * 4; out[o] = r; out[o + 1] = g; out[o + 2] = b; out[o + 3] = a;
+  };
+  if (mode >= 8) { for (let k = 0; k < 16; k++) put(k & 3, k >> 2, 0, 0, 0, 0); return; }
+  let parts = 1, partition = 0, rotation = 0, isb = 0;
+  if (mode === 0 || mode === 1 || mode === 2 || mode === 3 || mode === 7) { parts = (mode === 0 || mode === 2) ? 3 : 2; partition = rb(mode === 0 ? 4 : 6); }
+  if (mode === 4 || mode === 5) { rotation = rb(2); if (mode === 4) isb = rb(1); }
+  const ne = parts * 2, ep = [];
+  for (let j = 0; j < ne; j++) ep.push([0, 0, 0, 0]);
+  for (let c = 0; c < 3; c++) for (let j = 0; j < ne; j++) ep[j][c] = rb(BC7_CB[mode]);
+  if (BC7_AB[mode]) for (let j = 0; j < ne; j++) ep[j][3] = rb(BC7_AB[mode]);
+  const hasP = (BC7_PBITS >> mode) & 1;
+  if (hasP) {
+    for (const e of ep) for (let c = 0; c < 4; c++) e[c] <<= 1;
+    if (mode === 1) { const a = rb(1), b = rb(1); for (let c = 0; c < 3; c++) { ep[0][c] |= a; ep[1][c] |= a; ep[2][c] |= b; ep[3][c] |= b; } }
+    else for (const e of ep) { const b = rb(1); for (let c = 0; c < 4; c++) e[c] |= b; }
+  }
+  for (const e of ep) {
+    let n = BC7_CB[mode] + hasP;
+    for (let c = 0; c < 3; c++) { e[c] = (e[c] << (8 - n)) & 255; e[c] |= e[c] >> n; }
+    if (BC7_AB[mode]) { n = BC7_AB[mode] + hasP; e[3] = (e[3] << (8 - n)) & 255; e[3] |= e[3] >> n; }
+    else e[3] = 255;
+  }
+  const ib = (mode === 0 || mode === 1) ? 3 : (mode === 6 ? 4 : 2);
+  const ib2 = mode === 4 ? 3 : (mode === 5 ? 2 : 0);
+  const W = BC7_W[ib], W2 = ib2 ? BC7_W[ib2] : null;
+  const tab = parts === 2 ? BC7_P2 : parts === 3 ? BC7_P3 : null;
+  const subset = new Uint8Array(16), idx = new Uint8Array(16);
+  for (let k = 0; k < 16; k++) {
+    let d = tab ? tab.charCodeAt(partition * 16 + k) - 48 : (k ? 0 : 3);
+    const anchor = d >= 3; if (anchor) d -= 3;
+    subset[k] = d;
+    idx[k] = rb(anchor ? ib - 1 : ib);
+  }
+  const lerp = (a, b, wt, i) => (a * (64 - wt[i]) + b * wt[i] + 32) >> 6;
+  for (let k = 0; k < 16; k++) {
+    const e0 = ep[subset[k] * 2], e1 = ep[subset[k] * 2 + 1], i = idx[k];
+    let r, g, b, a;
+    if (!ib2) { r = lerp(e0[0], e1[0], W, i); g = lerp(e0[1], e1[1], W, i); b = lerp(e0[2], e1[2], W, i); a = lerp(e0[3], e1[3], W, i); }
+    else {
+      const i2 = rb(k ? ib2 : ib2 - 1);
+      if (!isb) { r = lerp(e0[0], e1[0], W, i); g = lerp(e0[1], e1[1], W, i); b = lerp(e0[2], e1[2], W, i); a = lerp(e0[3], e1[3], W2, i2); }
+      else { r = lerp(e0[0], e1[0], W2, i2); g = lerp(e0[1], e1[1], W2, i2); b = lerp(e0[2], e1[2], W2, i2); a = lerp(e0[3], e1[3], W, i); }
+    }
+    if (rotation === 1) [a, r] = [r, a]; else if (rotation === 2) [a, g] = [g, a]; else if (rotation === 3) [a, b] = [b, a];
+    put(k & 3, k >> 2, r, g, b, a);
+  }
+}
+
+function decodeBC7(src, w, h) {
+  const out = new Uint8Array(w * h * 4);
+  const bw = Math.max(1, (w + 3) >> 2), bh = Math.max(1, (h + 3) >> 2);
+  for (let by = 0, p = 0; by < bh; by++) for (let bx = 0; bx < bw; bx++, p += 16) {
+    if (p + 16 > src.length) return out;
+    decodeBC7Block(src, p, out, w, h, bx, by);
+  }
+  return out;
+}
+
+/** BCn -> RGBA8.  kind: 1..5, 7 */
+function decodeBC(src, w, h, kind) {
+  if (kind === 7) return decodeBC7(src, w, h);
+  const out = new Uint8Array(w * h * 4);
+  const bw = Math.max(1, (w + 3) >> 2), bh = Math.max(1, (h + 3) >> 2);
+  const blockSize = kind === 1 || kind === 4 ? 8 : 16;
+  const pal = new Uint8Array(16), A = new Array(16), B = new Array(16);
+  let p = 0;
+  for (let by = 0; by < bh; by++) for (let bx = 0; bx < bw; bx++, p += blockSize) {
+    if (p + blockSize > src.length) return out;
+    let colorAt = -1;
+    if (kind === 1) colorAt = p;
+    else if (kind === 2) { for (let k = 0; k < 16; k++) { const v = (src[p + (k >> 1)] >> ((k & 1) * 4)) & 15; A[k] = v * 17; } colorAt = p + 8; }
+    else if (kind === 3) { decodeAlphaBlock(src, p, A); colorAt = p + 8; }
+    else if (kind === 4) decodeAlphaBlock(src, p, A);
+    else if (kind === 5) { decodeAlphaBlock(src, p, A); decodeAlphaBlock(src, p + 8, B); }
+    let idx = 0;
+    if (colorAt >= 0) { decodeBC1Block(src, colorAt, pal, kind !== 1); idx = (src[colorAt + 4] | (src[colorAt + 5] << 8) | (src[colorAt + 6] << 16) | (src[colorAt + 7] << 24)) >>> 0; }
+    for (let k = 0; k < 16; k++) {
+      const x = bx * 4 + (k & 3), y = by * 4 + (k >> 2);
+      if (x >= w || y >= h) continue;
+      const o = (y * w + x) * 4;
+      if (kind <= 3) {
+        const ci = ((idx >>> (2 * k)) & 3) * 4;
+        out[o] = pal[ci]; out[o + 1] = pal[ci + 1]; out[o + 2] = pal[ci + 2];
+        out[o + 3] = kind === 1 ? pal[ci + 3] : A[k];
+      } else if (kind === 4) { out[o] = out[o + 1] = out[o + 2] = A[k]; out[o + 3] = 255; }
+      else {
+        const nx = A[k] / 127.5 - 1, ny = B[k] / 127.5 - 1;
+        const nz = Math.sqrt(Math.max(0, 1 - nx * nx - ny * ny));
+        out[o] = A[k]; out[o + 1] = B[k]; out[o + 2] = (nz * 0.5 + 0.5) * 255 | 0; out[o + 3] = 255;
+      }
+    }
+  }
+  return out;
+}
+
+function decodeMasked(src, off, w, h, bpp, masks) {
+  const out = new Uint8Array(w * h * 4);
+  const bytes = bpp >> 3;
+  const shifts = masks.map(m => { if (!m) return [0, 0]; let s = 0; while (!((m >>> s) & 1)) s++; let n = 0; while ((m >>> (s + n)) & 1) n++; return [s, n]; });
+  for (let i = 0; i < w * h; i++) {
+    const p = off + i * bytes;
+    if (p + bytes > src.length) break;
+    let v = 0;
+    for (let b = 0; b < bytes; b++) v |= src[p + b] << (8 * b);
+    v >>>= 0;
+    for (let c = 0; c < 4; c++) {
+      const m = masks[c];
+      if (!m) { out[i * 4 + c] = c === 3 ? 255 : 0; continue; }
+      const [s, n] = shifts[c];
+      out[i * 4 + c] = Math.round((((v & m) >>> 0) >>> s) * 255 / ((1 << n) - 1));
+    }
+  }
+  return out;
+}
+
+const DXGI_BC = { 70: 1, 71: 1, 72: 1, 73: 2, 74: 2, 75: 2, 76: 3, 77: 3, 78: 3, 79: 4, 80: 4, 81: 4, 82: 5, 83: 5, 84: 5, 97: 7, 98: 7, 99: 7 };
+
+function decodeDDS(u8) {
+  const dv = new DataView(u8.buffer, u8.byteOffset, u8.byteLength);
+  if (cstr(u8.subarray(0, 4)) !== "DDS ") throw new DavaError("не DDS");
+  const h = dv.getUint32(12, true), w = dv.getUint32(16, true);
+  const pfFlags = dv.getUint32(80, true);
+  const fourcc = String.fromCharCode(u8[84], u8[85], u8[86], u8[87]);
+  const bpp = dv.getUint32(88, true);
+  let off = 128;
+  if (pfFlags & 4) {
+    if (fourcc === "DX10") {
+      const dxgi = dv.getUint32(128, true); off = 148;
+      if (DXGI_BC[dxgi]) return { width: w, height: h, data: decodeBC(u8.subarray(off), w, h, DXGI_BC[dxgi]), format: "DX10 BC" + DXGI_BC[dxgi] };
+      if (dxgi === 28 || dxgi === 29) return { width: w, height: h, data: u8.slice(off, off + w * h * 4), format: "RGBA8" };
+      if (dxgi === 87 || dxgi === 88 || dxgi === 91) return { width: w, height: h, data: decodeMasked(u8, off, w, h, 32, [0xFF0000, 0xFF00, 0xFF, dxgi === 88 ? 0 : 0xFF000000]), format: "BGRA8" };
+      throw new DavaError("DDS DX10: формат " + dxgi + " не поддерживается");
+    }
+    const kind = { DXT1: 1, DXT2: 2, DXT3: 2, DXT4: 3, DXT5: 3, ATI1: 4, BC4U: 4, ATI2: 5, BC5U: 5 }[fourcc];
+    if (!kind) throw new DavaError("DDS: FourCC " + fourcc + " не поддерживается");
+    let data = decodeBC(u8.subarray(off), w, h, kind);
+    let format = fourcc;
+    if (kind === 3 && (pfFlags & 0x80000000)) format = "DXT5 (2 канала)";
+    return { width: w, height: h, data, format };
+  }
+  const masks = [dv.getUint32(92, true), dv.getUint32(96, true), dv.getUint32(100, true), (pfFlags & 1) ? dv.getUint32(104, true) : 0];
+  if (pfFlags & 0x20000 && !(pfFlags & 0x40)) { // luminance
+    return { width: w, height: h, data: decodeMasked(u8, off, w, h, bpp, [masks[0], masks[0], masks[0], masks[3]]), format: "L" + bpp };
+  }
+  return { width: w, height: h, data: decodeMasked(u8, off, w, h, bpp, masks), format: "RGB" + bpp };
+}
+
+// ---- ETC1 / ETC2 (+EAC alpha)
+const ETC_MOD = [[2, 8], [5, 17], [9, 29], [13, 42], [18, 60], [24, 80], [33, 106], [47, 183]];
+const ETC_DIST = [3, 6, 11, 16, 23, 32, 41, 64];
+const clamp255 = v => v < 0 ? 0 : v > 255 ? 255 : v;
+const ext4 = v => (v << 4) | v, ext5 = v => (v << 3) | (v >> 2);
+
+function etcBlock(b, out, w, h, bx, by, punch) {
+  const hi = ((b[0] << 24) | (b[1] << 16) | (b[2] << 8) | b[3]) >>> 0;
+  const lo = ((b[4] << 24) | (b[5] << 16) | (b[6] << 8) | b[7]) >>> 0;
+  const put = (x, y, r, g, bb, a = 255) => {
+    const px = bx * 4 + x, py = by * 4 + y;
+    if (px >= w || py >= h) return;
+    const o = (py * w + px) * 4; out[o] = clamp255(r); out[o + 1] = clamp255(g); out[o + 2] = clamp255(bb); out[o + 3] = a;
+  };
+  const pixIdx = (x, y) => { const k = x * 4 + y; return { msb: (lo >>> (16 + k)) & 1, lsb: (lo >>> k) & 1 }; };
+  const diff = (hi >>> 1) & 1;
+  const flip = hi & 1;
+  let base1, base2;
+  if (!diff && !punch) {
+    base1 = [ext4(hi >>> 28 & 15), ext4(hi >>> 20 & 15), ext4(hi >>> 12 & 15)];
+    base2 = [ext4(hi >>> 24 & 15), ext4(hi >>> 16 & 15), ext4(hi >>> 8 & 15)];
+  } else {
+    const r = hi >>> 27 & 31, g = hi >>> 19 & 31, bl = hi >>> 11 & 31;
+    const sx = v => (v & 4) ? v - 8 : v;
+    const dr = sx(hi >>> 24 & 7), dg = sx(hi >>> 16 & 7), db = sx(hi >>> 8 & 7);
+    const r2 = r + dr, g2 = g + dg, b2 = bl + db;
+    if (r2 < 0 || r2 > 31) {        // T mode (ETC2)
+      const R1 = ext4(((b[0] >> 1) & 12) | (b[0] & 3)), G1 = ext4(b[1] >> 4), B1 = ext4(b[1] & 15);
+      const R2 = ext4(b[2] >> 4), G2 = ext4(b[2] & 15), B2 = ext4(b[3] >> 4);
+      const d = ETC_DIST[((b[3] >> 1) & 6) | (b[3] & 1)];
+      const pal = [[R1, G1, B1], [R2 + d, G2 + d, B2 + d], [R2, G2, B2], [R2 - d, G2 - d, B2 - d]];
+      for (let x = 0; x < 4; x++) for (let y = 0; y < 4; y++) { const p = pixIdx(x, y); const i = p.msb * 2 + p.lsb; if (punch && i === 2) put(x, y, 0, 0, 0, 0); else put(x, y, ...pal[i]); }
+      return;
+    }
+    if (g2 < 0 || g2 > 31) {        // H mode
+      const R1 = ext4((b[0] >> 3) & 15), G1 = ext4(((b[0] & 7) << 1) | ((b[1] >> 4) & 1));
+      const B1 = ext4((b[1] & 8) | ((b[1] & 3) << 1) | (b[2] >> 7));
+      const R2 = ext4((b[2] >> 3) & 15), G2 = ext4(((b[2] & 7) << 1) | (b[3] >> 7)), B2 = ext4((b[3] >> 3) & 15);
+      const v1 = (R1 << 16) | (G1 << 8) | B1, v2 = (R2 << 16) | (G2 << 8) | B2;
+      const d = ETC_DIST[(b[3] & 4) | ((b[3] & 1) << 1) | (v1 >= v2 ? 1 : 0)];
+      const pal = [[R1 + d, G1 + d, B1 + d], [R1 - d, G1 - d, B1 - d], [R2 + d, G2 + d, B2 + d], [R2 - d, G2 - d, B2 - d]];
+      for (let x = 0; x < 4; x++) for (let y = 0; y < 4; y++) { const p = pixIdx(x, y); const i = p.msb * 2 + p.lsb; if (punch && i === 2) put(x, y, 0, 0, 0, 0); else put(x, y, ...pal[i]); }
+      return;
+    }
+    if (b2 < 0 || b2 > 31) {        // planar mode
+      const ro = (b[0] >> 1) & 63, go = ((b[0] & 1) << 6) | ((b[1] >> 1) & 63);
+      const bo = ((b[1] & 1) << 5) | ((b[2] & 0x18)) | ((b[2] & 3) << 1) | (b[3] >> 7);
+      const rh = ((b[3] >> 1) & 62) | (b[3] & 1), gh = b[4] >> 1, bh = ((b[4] & 1) << 5) | (b[5] >> 3);
+      const rv = ((b[5] & 7) << 3) | (b[6] >> 5), gv = ((b[6] & 31) << 2) | (b[7] >> 6), bv = b[7] & 63;
+      const e6 = v => (v << 2) | (v >> 4), e7 = v => (v << 1) | (v >> 6);
+      const O = [e6(ro), e7(go), e6(bo)], H = [e6(rh), e7(gh), e6(bh)], V = [e6(rv), e7(gv), e6(bv)];
+      for (let x = 0; x < 4; x++) for (let y = 0; y < 4; y++)
+        put(x, y, ...[0, 1, 2].map(c => (x * (H[c] - O[c]) + y * (V[c] - O[c]) + 4 * O[c] + 2) >> 2));
+      return;
+    }
+    base1 = [ext5(r), ext5(g), ext5(bl)];
+    base2 = [ext5(r2), ext5(g2), ext5(b2)];
+  }
+  const t1 = hi >>> 5 & 7, t2 = hi >>> 2 & 7;
+  for (let x = 0; x < 4; x++) for (let y = 0; y < 4; y++) {
+    const second = flip ? y >= 2 : x >= 2;
+    const base = second ? base2 : base1, tab = ETC_MOD[second ? t2 : t1];
+    const p = pixIdx(x, y);
+    if (punch && !diff && p.msb === 1 && p.lsb === 0) { put(x, y, 0, 0, 0, 0); continue; }
+    let m = p.lsb ? tab[1] : tab[0];
+    if (punch && !diff && p.lsb === 0) m = 0;
+    if (p.msb) m = -m;
+    put(x, y, base[0] + m, base[1] + m, base[2] + m);
+  }
+}
+
+const EAC_MOD = [[-3, -6, -9, -15, 2, 5, 8, 14], [-3, -7, -10, -13, 2, 6, 9, 12], [-2, -5, -8, -13, 1, 4, 7, 12],
+  [-2, -4, -6, -13, 1, 3, 5, 12], [-3, -6, -8, -12, 2, 5, 7, 11], [-3, -7, -9, -11, 2, 6, 8, 10],
+  [-4, -7, -8, -11, 3, 6, 7, 10], [-3, -5, -8, -11, 2, 4, 7, 10], [-2, -6, -8, -10, 1, 5, 7, 9],
+  [-2, -5, -8, -10, 1, 4, 7, 9], [-2, -4, -8, -10, 1, 3, 7, 9], [-2, -5, -7, -10, 1, 4, 6, 9],
+  [-3, -4, -7, -10, 2, 3, 6, 9], [-1, -2, -3, -10, 0, 1, 2, 9], [-4, -6, -8, -9, 3, 5, 7, 8], [-3, -5, -7, -9, 2, 4, 6, 8]];
+
+function eacAlpha(b, out, w, h, bx, by) {
+  const base = b[0], mul = b[1] >> 4, tab = EAC_MOD[b[1] & 15];
+  let bits = 0n;
+  for (let k = 2; k < 8; k++) bits = (bits << 8n) | BigInt(b[k]);
+  for (let x = 0; x < 4; x++) for (let y = 0; y < 4; y++) {
+    const k = x * 4 + y;
+    const i = Number((bits >> BigInt(45 - 3 * k)) & 7n);
+    const px = bx * 4 + x, py = by * 4 + y;
+    if (px >= w || py >= h) continue;
+    out[(py * w + px) * 4 + 3] = clamp255(base + tab[i] * mul);
+  }
+}
+
+function decodeETC(src, w, h, mode /* "etc1"|"etc2"|"etc2a"|"etc2a1" */) {
+  const out = new Uint8Array(w * h * 4);
+  const bw = (w + 3) >> 2, bh = (h + 3) >> 2, bs = mode === "etc2a" ? 16 : 8;
+  let p = 0;
+  for (let by = 0; by < bh; by++) for (let bx = 0; bx < bw; bx++, p += bs) {
+    if (p + bs > src.length) return out;
+    if (mode === "etc2a") { etcBlock(src.subarray(p + 8, p + 16), out, w, h, bx, by, false); eacAlpha(src.subarray(p, p + 8), out, w, h, bx, by); }
+    else etcBlock(src.subarray(p, p + 8), out, w, h, bx, by, mode === "etc2a1");
+  }
+  return out;
+}
+
+function decodePVR(u8) {
+  const dv = new DataView(u8.buffer, u8.byteOffset, u8.byteLength);
+  if (dv.getUint32(0, true) !== 0x03525650) throw new DavaError("не PVR3");
+  const pfLo = dv.getUint32(8, true), pfHi = dv.getUint32(12, true);
+  const h = dv.getUint32(24, true), w = dv.getUint32(28, true);
+  const meta = dv.getUint32(48, true);
+  const off = 52 + meta;
+  const src = u8.subarray(off);
+  let data, format;
+  if (pfHi === 0) {
+    const bc = { 7: 1, 8: 2, 9: 2, 10: 3, 11: 3, 12: 4, 13: 5, 15: 7 }[pfLo];
+    if (bc) { data = decodeBC(src, w, h, bc); format = "BC" + bc; }
+    else if (pfLo === 6) { data = decodeETC(src, w, h, "etc1"); format = "ETC1"; }
+    else if (pfLo === 22) { data = decodeETC(src, w, h, "etc2"); format = "ETC2"; }
+    else if (pfLo === 23) { data = decodeETC(src, w, h, "etc2a"); format = "ETC2+EAC"; }
+    else if (pfLo === 24) { data = decodeETC(src, w, h, "etc2a1"); format = "ETC2 A1"; }
+    else throw new DavaError("PVR: сжатый формат " + pfLo + " не поддерживается (PVRTC/ASTC)");
+  } else {
+    const names = [], bits = [];
+    for (let i = 0; i < 4; i++) {
+      const ch = (pfLo >>> (8 * i)) & 255, bt = (pfHi >>> (8 * i)) & 255;
+      if (ch && bt) { names.push(String.fromCharCode(ch)); bits.push(bt); }
+    }
+    const total = bits.reduce((a, b) => a + b, 0);
+    const bytes = total >> 3;
+    data = new Uint8Array(w * h * 4);
+    const all8 = bits.every(b => b === 8);
+    for (let i = 0; i < w * h; i++) {
+      const p = i * bytes;
+      if (p + bytes > src.length) break;
+      const o = i * 4;
+      data[o + 3] = 255;
+      if (all8) {
+        names.forEach((n, c) => { const t = "rgba".indexOf(n); if (t >= 0) data[o + t] = src[p + c]; else if (n === "l") data[o] = data[o + 1] = data[o + 2] = src[p + c]; });
+      } else {
+        let v = 0; for (let b = 0; b < bytes; b++) v |= src[p + b] << (8 * b); v >>>= 0;
+        let shift = total;
+        names.forEach((n, c) => {
+          shift -= bits[c];
+          const x = Math.round(((v >>> shift) & ((1 << bits[c]) - 1)) * 255 / ((1 << bits[c]) - 1));
+          const t = "rgba".indexOf(n); if (t >= 0) data[o + t] = x; else if (n === "l") data[o] = data[o + 1] = data[o + 2] = x;
+        });
+      }
+    }
+    format = names.join("") + bits.join("");
+  }
+  // PVR images in Blitz are stored bottom-up relative to DDS
+  const row = w * 4, tmp = new Uint8Array(row);
+  for (let y = 0; y < h >> 1; y++) {
+    const a = y * row, b = (h - 1 - y) * row;
+    tmp.set(data.subarray(a, a + row)); data.copyWithin(a, b, b + row); data.set(tmp, b);
+  }
+  return { width: w, height: h, data, format: "PVR " + format };
+}
+
+/** Decode a game texture from bytes (DVPL is unwrapped automatically).
+ *  Returns {width,height,data(RGBA8),format} or {browserImage:true} for png/jpg/webp. */
+function decodeTexture(u8) {
+  u8 = decodeDVPL(u8);
+  if (u8[0] === 0x44 && u8[1] === 0x44 && u8[2] === 0x53 && u8[3] === 0x20) return decodeDDS(u8);
+  if (u8[0] === 0x50 && u8[1] === 0x56 && u8[2] === 0x52 && u8[3] === 3) return decodePVR(u8);
+  if ((u8[0] === 0x89 && u8[1] === 0x50) || (u8[0] === 0xFF && u8[1] === 0xD8) || (u8[0] === 0x52 && u8[1] === 0x49))
+    return { browserImage: true, bytes: u8 };
+  throw new DavaError("неизвестный формат текстуры");
+}
+
+// ---------------------------------------------------------------- file index / texture lookup
+const IMG_EXT = ["dds", "pvr", "png", "webp", "jpg", "jpeg", "ktx"];
+const GPU_TAGS = ["dx11", "dx9", "mali", "adreno", "tegra", "pvr", "png"];
+const EXT_SCORE = { dds: 0, pvr: 2, png: 1, webp: 1, jpg: 1, jpeg: 1, ktx: 3 };
+
+function normPath(p) {
+  p = String(p).replace(/\\/g, "/").replace(/^~res:\/*/i, "").replace(/^\.\//, "");
+  const out = [];
+  for (const part of p.split("/")) {
+    if (part === "" || part === ".") continue;
+    if (part === "..") { if (out.length && out[out.length - 1] !== "..") out.pop(); else out.push(".."); }
+    else out.push(part);
+  }
+  return out.join("/");
+}
+function dirOf(p) { const i = p.lastIndexOf("/"); return i >= 0 ? p.slice(0, i) : ""; }
+function baseOf(p) { const i = p.lastIndexOf("/"); return i >= 0 ? p.slice(i + 1) : p; }
+
+/** Index of user-supplied files: path -> handle (File, Uint8Array, url...). */
+class FileIndex {
+  constructor() { this.files = new Map(); this.texStems = new Map(); }
+  add(path, handle) {
+    path = normPath(path);
+    this.files.set(path.toLowerCase(), { path, handle });
+    let low = path.toLowerCase();
+    if (low.endsWith(".dvpl")) low = low.slice(0, -5);
+    const m = /\.([a-z0-9]+)$/.exec(low);
+    if (!m || !IMG_EXT.includes(m[1])) return;
+    let stem = low.slice(0, -m[0].length);
+    let score = EXT_SCORE[m[1]] * 10;
+    const reg = (s, sc) => {
+      const list = this.texStems.get(s) || [];
+      list.push({ path, handle, score: sc });
+      list.sort((a, b) => a.score - b.score);
+      this.texStems.set(s, list);
+    };
+    reg(stem, score + 1);
+    const g = /\.([a-z0-9]+)$/.exec(stem);
+    if (g && GPU_TAGS.includes(g[1])) reg(stem.slice(0, -g[0].length), score + (g[1] === "dx11" ? 0 : 2));
+  }
+  get(path) { return this.files.get(normPath(path).toLowerCase()) || null; }
+  list() { return [...this.files.values()]; }
+  models() { return this.list().filter(f => /\.(sc2|scg)(\.dvpl)?$/i.test(f.path)); }
+  /** paired file for a model: same folder+stem, else same name anywhere */
+  pair(path, ext) {
+    const p = normPath(path).toLowerCase().replace(/\.dvpl$/, "");
+    const stem = p.replace(/\.(sc2|scg)$/, "");
+    for (const c of [stem + "." + ext, stem + "." + ext + ".dvpl"]) { const f = this.files.get(c); if (f) return f; }
+    const b = baseOf(stem);
+    for (const f of this.files.values()) {
+      const q = f.path.toLowerCase().replace(/\.dvpl$/, "");
+      if (baseOf(q) === b + "." + ext) return f;
+    }
+    return null;
+  }
+  /** texture path from a material (relative to the model folder or ~res:/) */
+  findTexture(texPath, modelPath) {
+    let t = String(texPath).replace(/\\/g, "/");
+    const isRes = /^~res:/i.test(t);
+    t = normPath(t).toLowerCase().replace(/\.tex$/, "");
+    const tries = [];
+    if (!isRes && modelPath) tries.push(normPath(dirOf(normPath(modelPath)) + "/" + t).toLowerCase());
+    tries.push(t);
+    for (const s of tries) { const l = this.texStems.get(s); if (l) return l[0]; }
+    // suffix match: longest common tail wins
+    const want = (tries[0] || t).split("/");
+    let best = null, bestScore = -1;
+    for (const [stem, list] of this.texStems) {
+      const parts = stem.split("/");
+      if (parts[parts.length - 1] !== want[want.length - 1]) continue;
+      let k = 1;
+      while (k < parts.length && k < want.length && parts[parts.length - 1 - k] === want[want.length - 1 - k]) k++;
+      const sc = k * 100 - list[0].score;
+      if (sc > bestScore) { bestScore = sc; best = list[0]; }
+    }
+    return best;
+  }
+}
+
+// ---------------------------------------------------------------- JSON dump helper
+function toJSONSafe(v, depth = 0) {
+  if (v === null || v === undefined) return v ?? null;
+  if (typeof v === "bigint") return v.toString();
+  if (v instanceof Uint8Array) return `<${v.length} байт>`;
+  if (Array.isArray(v)) return v.map(x => toJSONSafe(x, depth + 1));
+  if (typeof v === "object") { const o = {}; for (const [k, x] of Object.entries(v)) o[k] = toJSONSafe(x, depth + 1); return o; }
+  if (typeof v === "number" && !Number.isFinite(v)) return String(v);
+  return v;
+}
+
+/** Load a model from raw bytes. */
+function openModel(sc2Bytes, scgBytes) {
+  const sc2 = sc2Bytes ? readSC2(decodeDVPL(sc2Bytes)) : null;
+  const scg = scgBytes ? readSCG(decodeDVPL(scgBytes)) : null;
+  return new Scene(sc2, scg);
+}
+
+return { DavaError, lz4Block, crc32, isDVPL, decodeDVPL, Reader, readArchive, readValue, idKey,
+  vertexLayout, Mesh, readSCG, readSC2, matMul, trsMatrix, transformPoint, IDENTITY, components,
+  component, Entity, Material, Scene, decodeBC, decodeDDS, decodePVR, decodeETC, decodeTexture,
+  normPath, dirOf, baseOf, FileIndex, toJSONSafe, openModel, PRIM_NAMES, T };
+})();
+if (typeof module !== "undefined") module.exports = Dava;
+
+</script>
+<script>
+/* ===== Viewer UI + WebGL2 renderer (browser only) ===== */
+"use strict";
+(() => {
+const $ = id => document.getElementById(id);
+const canvas = $("gl");
+const gl = canvas.getContext("webgl2", { antialias: true, preserveDrawingBuffer: true });
+
+const S = {
+  index: new Dava.FileIndex(),
+  scene: null, modelPath: "", sc2Path: "", scgPath: "",
+  lod: 0, textures: true, wire: false, service: false, grid: true, cull: false,
+  selected: null,                    // Entity
+  gpuMeshes: new Map(),              // Mesh -> gpu
+  texCache: new Map(),               // file path -> {tex, img, error, format}
+  matInfo: new Map(),                // material id -> {texPath, file, alphaTest, threshold}
+  items: [],                         // current draw list
+  cam: { target: [0, 0, 1], dist: 10, yaw: -2.2, pitch: 0.35 },
+  sceneRadius: 5,
+};
+
+// ------------------------------------------------------------------ helpers
+function toast(msg, err = false, ms = 4500) {
+  const t = $("toast"); t.textContent = msg; t.className = "toast" + (err ? " err" : ""); t.style.display = "block";
+  clearTimeout(toast._t); toast._t = setTimeout(() => (t.style.display = "none"), ms);
+}
+function esc(s) { return String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
+async function readHandle(h) {
+  if (h instanceof Uint8Array) return h;
+  if (typeof h === "string") { const r = await fetch(h); if (!r.ok) throw new Error(h + ": HTTP " + r.status); return new Uint8Array(await r.arrayBuffer()); }
+  return new Uint8Array(await h.arrayBuffer());
+}
+function download(name, data, mime) {
+  const blob = data instanceof Blob ? data : new Blob([data], { type: mime || "application/octet-stream" });
+  const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name;
+  document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+}
+const fmtN = n => n.toLocaleString("ru-RU");
+const fmt3 = v => v.map(x => (+x).toFixed(3)).join(", ");
+function stemName(p) { return Dava.baseOf(p).replace(/\.dvpl$/i, "").replace(/\.(sc2|scg)$/i, ""); }
+
+// ------------------------------------------------------------------ math (column-major, GL)
+const M4 = {
+  persp(fovy, aspect, n, f) { const t = 1 / Math.tan(fovy / 2); return [t / aspect, 0, 0, 0, 0, t, 0, 0, 0, 0, (f + n) / (n - f), -1, 0, 0, 2 * f * n / (n - f), 0]; },
+  lookAt(e, c, up) {
+    let z = norm(sub(e, c)), x = norm(cross(up, z)), y = cross(z, x);
+    return [x[0], y[0], z[0], 0, x[1], y[1], z[1], 0, x[2], y[2], z[2], 0, -dot(x, e), -dot(y, e), -dot(z, e), 1];
+  },
+  mul(a, b) { const o = new Array(16); for (let c = 0; c < 4; c++) for (let r = 0; r < 4; r++) { let s = 0; for (let k = 0; k < 4; k++) s += a[k * 4 + r] * b[c * 4 + k]; o[c * 4 + r] = s; } return o; },
+};
+function sub(a, b) { return [a[0] - b[0], a[1] - b[1], a[2] - b[2]]; }
+function add(a, b) { return [a[0] + b[0], a[1] + b[1], a[2] + b[2]]; }
+function scale(a, s) { return [a[0] * s, a[1] * s, a[2] * s]; }
+function dot(a, b) { return a[0] * b[0] + a[1] * b[1] + a[2] * b[2]; }
+function cross(a, b) { return [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]]; }
+function norm(a) { const l = Math.hypot(a[0], a[1], a[2]) || 1; return [a[0] / l, a[1] / l, a[2] / l]; }
+
+// ------------------------------------------------------------------ GL setup
+const VS = `#version 300 es
+layout(location=0) in vec3 aPos; layout(location=1) in vec3 aNrm; layout(location=2) in vec2 aUv;
+uniform mat4 uModel, uVP;
+out vec3 vN; out vec2 vUv; out vec3 vW;
+void main(){ vec4 w = uModel * vec4(aPos,1.0); vW = w.xyz; vN = mat3(uModel) * aNrm; vUv = aUv; gl_Position = uVP * w; }`;
+const FS = `#version 300 es
+precision highp float;
+in vec3 vN; in vec2 vUv; in vec3 vW;
+uniform sampler2D uTex; uniform int uHasTex, uHasNrm, uAlphaTest; uniform float uThreshold;
+uniform vec3 uColor, uEye, uLight; uniform float uHi;
+out vec4 o;
+void main(){
+  vec4 c = uHasTex == 1 ? texture(uTex, vUv) : vec4(uColor, 0.25);
+  if (uAlphaTest == 1 && c.a < uThreshold) discard;
+  vec3 V = normalize(uEye - vW);
+  vec3 n = (uHasNrm == 1 && dot(vN, vN) > 1e-8) ? normalize(vN) : normalize(cross(dFdx(vW), dFdy(vW)));
+  if (dot(n, V) < 0.0) n = -n;
+  float sky = 0.5 + 0.5 * n.z;
+  float dif = max(dot(n, uLight), 0.0);
+  float fill = max(dot(n, normalize(vec3(-uLight.xy, 0.4))), 0.0);
+  vec3 H = normalize(uLight + V);
+  float spec = pow(max(dot(n, H), 0.0), 40.0) * (uAlphaTest == 1 ? 0.15 : c.a) * 0.6;
+  vec3 col = c.rgb * (0.30 + 0.25 * sky + 0.60 * dif + 0.15 * fill) + vec3(spec);
+  float rim = pow(1.0 - max(dot(n, V), 0.0), 2.0);
+  col = mix(col, vec3(1.0, 0.62, 0.15), uHi * (0.25 + 0.5 * rim));
+  o = vec4(col, 1.0);
+}`;
+const VS_L = `#version 300 es
+layout(location=0) in vec3 aPos; uniform mat4 uModel, uVP; void main(){ gl_Position = uVP * uModel * vec4(aPos,1.0); }`;
+const FS_L = `#version 300 es
+precision highp float; uniform vec4 uColor; out vec4 o; void main(){ o = uColor; }`;
+
+function compile(vs, fs) {
+  const p = gl.createProgram();
+  for (const [type, src] of [[gl.VERTEX_SHADER, vs], [gl.FRAGMENT_SHADER, fs]]) {
+    const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s);
+    if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s));
+    gl.attachShader(p, s);
+  }
+  gl.linkProgram(p);
+  if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(p));
+  const u = {}; const n = gl.getProgramParameter(p, gl.ACTIVE_UNIFORMS);
+  for (let i = 0; i < n; i++) { const name = gl.getActiveUniform(p, i).name; u[name] = gl.getUniformLocation(p, name); }
+  return { p, u };
+}
+
+let PROG, LPROG, gridGpu, axesGpu, pickFbo = null;
+function initGL() {
+  if (!gl) { toast("Браузер не поддерживает WebGL2 — откройте в свежем Chrome/Edge/Firefox", true, 60000); return false; }
+  PROG = compile(VS, FS); LPROG = compile(VS_L, FS_L);
+  gl.clearColor(0.16, 0.18, 0.21, 1);
+  gl.enable(gl.DEPTH_TEST);
+  return true;
+}
+
+function makeLines(points) {
+  const vao = gl.createVertexArray(); gl.bindVertexArray(vao);
+  const b = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, b); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(points), gl.STATIC_DRAW);
+  gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 12, 0);
+  gl.bindVertexArray(null);
+  return { vao, buf: b, count: points.length / 3 };
+}
+function freeLines(g) { if (g) { gl.deleteBuffer(g.buf); gl.deleteVertexArray(g.vao); } }
+
+function buildGrid(radius) {
+  freeLines(gridGpu); freeLines(axesGpu);
+  const step = radius > 40 ? 10 : radius > 8 ? 1 : radius > 1 ? 0.25 : 0.05;
+  const n = Math.ceil(radius * 1.6 / step), L = n * step, pts = [];
+  for (let i = -n; i <= n; i++) { pts.push(i * step, -L, 0, i * step, L, 0, -L, i * step, 0, L, i * step, 0); }
+  gridGpu = makeLines(pts);
+  const a = radius * 0.3;
+  axesGpu = makeLines([0, 0, 0, a, 0, 0, 0, 0, 0, 0, a, 0, 0, 0, 0, 0, 0, a]);
+}
+
+function gpuMesh(mesh) {
+  let g = S.gpuMeshes.get(mesh);
+  if (g) return g;
+  g = { vao: gl.createVertexArray(), bufs: [] };
+  gl.bindVertexArray(g.vao);
+  const vb = gl.createBuffer(); g.bufs.push(vb);
+  gl.bindBuffer(gl.ARRAY_BUFFER, vb); gl.bufferData(gl.ARRAY_BUFFER, mesh.floats, gl.STATIC_DRAW);
+  const st = mesh.stride;
+  const L = mesh.layout;
+  const bind = (loc, a, n) => { if (a && st) { gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, n, gl.FLOAT, false, st, a.offset * 4); } else { gl.disableVertexAttribArray(loc); } };
+  bind(0, L.position || { offset: 0 }, 3);
+  bind(1, L.normal, 3); if (!L.normal) gl.vertexAttrib3f(1, 0, 0, 0);
+  bind(2, L.uv0, 2); if (!L.uv0) gl.vertexAttrib2f(2, 0, 0);
+  const ib = gl.createBuffer(); g.bufs.push(ib);
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ib); gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, mesh.indices, gl.STATIC_DRAW);
+  g.itype = mesh.indices instanceof Uint16Array ? gl.UNSIGNED_SHORT : gl.UNSIGNED_INT;
+  g.count = mesh.indices.length;
+  g.mode = mesh.prim === 10 ? gl.LINES : gl.TRIANGLES;
+  g.hasNrm = !!L.normal; g.hasUv = !!L.uv0;
+  gl.bindVertexArray(null);
+  S.gpuMeshes.set(mesh, g);
+  return g;
+}
+function gpuWire(mesh, g) {
+  if (g.wire) return g.wire;
+  const idx = mesh.indices, n = Math.floor(idx.length / 3), lines = new Uint32Array(n * 6);
+  for (let t = 0; t < n; t++) { const a = idx[3 * t], b = idx[3 * t + 1], c = idx[3 * t + 2]; lines.set([a, b, b, c, c, a], t * 6); }
+  const vao = gl.createVertexArray(); gl.bindVertexArray(vao);
+  gl.bindBuffer(gl.ARRAY_BUFFER, g.bufs[0]);
+  gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 3, gl.FLOAT, false, mesh.stride, (mesh.layout.position || { offset: 0 }).offset * 4);
+  const ib = gl.createBuffer(); gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ib); gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, lines, gl.STATIC_DRAW);
+  gl.bindVertexArray(null);
+  g.bufs.push(ib);
+  return (g.wire = { vao, count: lines.length, extra: vao });
+}
+function freeGpu() {
+  for (const g of S.gpuMeshes.values()) { for (const b of g.bufs) gl.deleteBuffer(b); gl.deleteVertexArray(g.vao); if (g.wire) gl.deleteVertexArray(g.wire.vao); }
+  S.gpuMeshes.clear();
+  for (const t of S.texCache.values()) if (t.tex) gl.deleteTexture(t.tex);
+  S.texCache.clear();
+}
+
+// ------------------------------------------------------------------ materials / textures
+function propFloat(scene, mid, key) {
+  for (const m of scene.materialChain(mid)) {
+    const srcs = [m.raw.properties];
+    const cnt = m.raw.configCount;
+    for (let i = 0; i < (cnt || 0); i++) { const c = m.raw[`configArchive_${i}`]; if (c) srcs.push(c.properties); }
+    for (const props of srcs) {
+      const v = props && props[key];
+      if (typeof v === "number") return v;
+      if (Array.isArray(v)) return v[0];
+      if (v instanceof Uint8Array && v.length >= 9) return new DataView(v.buffer, v.byteOffset, v.length).getFloat32(5, true);
+    }
+  }
+  return null;
+}
+
+function materialInfo(mid) {
+  if (S.matInfo.has(mid)) return S.matInfo.get(mid);
+  const sc = S.scene;
+  const tex = sc.texturesFor(mid);
+  const texPath = tex.baseColorMap || tex.albedo || tex.diffuse || tex.texture0 || null;
+  const fx = sc.materialFx(mid);
+  const thr = propFloat(sc, mid, "alphatestThreshold");
+  const alphaTest = /alphatest/i.test(fx) || thr !== null;
+  const file = texPath ? S.index.findTexture(texPath, S.sc2Path || S.scgPath) : null;
+  const info = { mid, name: sc.materialName(mid), fx, textures: tex, texPath, file, alphaTest, threshold: thr ?? 0.3 };
+  S.matInfo.set(mid, info);
+  return info;
+}
+
+async function decodeImage(bytes) {
+  const res = Dava.decodeTexture(bytes);
+  if (!res.browserImage) return res;
+  const bmp = await createImageBitmap(new Blob([res.bytes]));
+  const c = document.createElement("canvas"); c.width = bmp.width; c.height = bmp.height;
+  const ctx = c.getContext("2d"); ctx.drawImage(bmp, 0, 0);
+  const d = ctx.getImageData(0, 0, c.width, c.height);
+  return { width: c.width, height: c.height, data: new Uint8Array(d.data.buffer), format: "PNG/JPG/WebP" };
+}
+
+function loadTexture(file) {
+  if (S.texCache.has(file.path)) return S.texCache.get(file.path);
+  const entry = { tex: null, img: null, error: null, format: "", pending: true };
+  S.texCache.set(file.path, entry);
+  (async () => {
+    try {
+      const img = await decodeImage(await readHandle(file.handle));
+      entry.img = img; entry.format = img.format;
+      const t = gl.createTexture();
+      gl.bindTexture(gl.TEXTURE_2D, t);
+      gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, img.width, img.height, 0, gl.RGBA, gl.UNSIGNED_BYTE, img.data);
+      gl.generateMipmap(gl.TEXTURE_2D);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
+      const aniso = gl.getExtension("EXT_texture_filter_anisotropic");
+      if (aniso) gl.texParameterf(gl.TEXTURE_2D, aniso.TEXTURE_MAX_ANISOTROPY_EXT, 8);
+      entry.tex = t;
+    } catch (e) { entry.error = e.message || String(e); console.warn(file.path, e); }
+    entry.pending = false;
+    renderMaterials(); requestDraw();
+  })();
+  return entry;
+}
+
+// ------------------------------------------------------------------ model loading
+async function addFiles(list) {
+  let added = [];
+  for (const { path, handle } of list) { S.index.add(path, handle); added.push(Dava.normPath(path)); }
+  // new textures may resolve old misses
+  S.matInfo.clear();
+  refreshModelSelect();
+  const models = added.filter(p => /\.(sc2|scg)(\.dvpl)?$/i.test(p));
+  const pick = models.find(p => /\.sc2(\.dvpl)?$/i.test(p)) || models[0];
+  if (pick) await openModel(pick);
+  else if (S.scene) { renderMaterials(); requestDraw(); toast(`Добавлено файлов: ${added.length}`); }
+  else toast("Среди файлов нет .sc2 / .scg", true);
+}
+
+function refreshModelSelect() {
+  const sel = $("modelSelect"), cur = S.modelPath;
+  const seen = new Set(); const opts = [];
+  for (const f of S.index.models().sort((a, b) => a.path.localeCompare(b.path))) {
+    const key = f.path.toLowerCase().replace(/\.dvpl$/, "").replace(/\.(sc2|scg)$/, "");
+    const isSc2 = /\.sc2(\.dvpl)?$/i.test(f.path);
+    if (seen.has(key) && !isSc2) continue;
+    if (seen.has(key)) { const i = opts.findIndex(o => o.key === key); if (i >= 0) opts.splice(i, 1); }
+    seen.add(key); opts.push({ key, path: f.path });
+  }
+  sel.innerHTML = `<option value="">— модель (${opts.length}) —</option>` + opts.map(o => `<option value="${esc(o.path)}"${o.path === cur ? " selected" : ""}>${esc(o.path)}</option>`).join("");
+}
+
+async function openModel(path) {
+  const f = S.index.get(path);
+  if (!f) return;
+  const isSc2 = /\.sc2(\.dvpl)?$/i.test(f.path);
+  const sc2f = isSc2 ? f : S.index.pair(f.path, "sc2");
+  const scgf = isSc2 ? S.index.pair(f.path, "scg") : f;
+  try {
+    const [a, b] = await Promise.all([sc2f ? readHandle(sc2f.handle) : null, scgf ? readHandle(scgf.handle) : null]);
+    const scene = Dava.openModel(a, b);
+    freeGpu(); S.matInfo.clear();
+    S.scene = scene; S.modelPath = f.path; S.sc2Path = sc2f ? sc2f.path : ""; S.scgPath = scgf ? scgf.path : "";
+    S.selected = null;
+    const lods = scene.lods().filter(l => l >= 0);
+    S.lod = lods.length ? lods[0] : 0;
+    $("lodSelect").innerHTML = (lods.length ? lods : [0]).map(l => `<option value="${l}">${l}</option>`).join("") + `<option value="all">все</option>`;
+    $("lodSelect").value = String(S.lod);
+    $("drop").classList.add("loaded");
+    refreshModelSelect();
+    rebuildItems(); fitView(); renderTree(); renderProps(); renderMaterials();
+    const msgs = [];
+    if (scene.missingGeometry && !scgf) msgs.push(`Геометрия не найдена: добавьте «${stemName(f.path)}.scg» (или .scg.dvpl) из той же папки.`);
+    else if (scene.missingGeometry) msgs.push(`Не найдено ${scene.missingGeometry} полигон-групп: .scg не от этой модели?`);
+    if (scene.warnings.length) msgs.push(...scene.warnings.slice(0, 3));
+    if (msgs.length) toast(msgs.join("\n"), true, 9000);
+    document.title = stemName(f.path) + " — SCG/SC2 Viewer";
+  } catch (e) {
+    console.error(e);
+    toast("Не удалось открыть " + f.path + ":\n" + (e.message || e), true, 10000);
+  }
+}
+
+function entityVisible(e) { for (let x = e; x; x = x.parent) if (!x.visible) return false; return true; }
+
+function rebuildItems() {
+  const sc = S.scene;
+  if (!sc) { S.items = []; return; }
+  const lod = S.lod === "all" ? null : S.lod;
+  S.items = sc.drawList(lod, S.service).filter(it => !it.entity || entityVisible(it.entity));
+  for (const it of S.items) it.mat = it.batch ? materialInfo(it.batch.material) : null;
+  S.items.sort((a, b) => (a.mat && a.mat.alphaTest ? 1 : 0) - (b.mat && b.mat.alphaTest ? 1 : 0));
+  updateStatus();
+  requestDraw();
+}
+
+function sceneBounds(items) {
+  const mn = [Infinity, Infinity, Infinity], mx = [-Infinity, -Infinity, -Infinity];
+  for (const it of items) {
+    const b = it.mesh.bbox(); if (!Number.isFinite(b.min[0])) continue;
+    const W = it.entity ? it.entity.world : Dava.IDENTITY;
+    for (let i = 0; i < 8; i++) {
+      const p = Dava.transformPoint(W, i & 1 ? b.max[0] : b.min[0], i & 2 ? b.max[1] : b.min[1], i & 4 ? b.max[2] : b.min[2]);
+      for (let c = 0; c < 3; c++) { mn[c] = Math.min(mn[c], p[c]); mx[c] = Math.max(mx[c], p[c]); }
+    }
+  }
+  if (!Number.isFinite(mn[0])) return { min: [-1, -1, 0], max: [1, 1, 1] };
+  return { min: mn, max: mx };
+}
+
+function fitView(items) {
+  const b = sceneBounds(items || S.items);
+  const c = scale(add(b.min, b.max), 0.5);
+  const r = Math.max(0.05, Math.hypot(b.max[0] - b.min[0], b.max[1] - b.min[1], b.max[2] - b.min[2]) / 2);
+  S.cam.target = c; S.cam.dist = r * 2.6;
+  if (!items) { S.sceneRadius = r; buildGrid(r); }
+  requestDraw();
+}
+
+function setView(v) {
+  const C = S.cam;
+  if (v === "front") { C.yaw = Math.PI / 2; C.pitch = 0.08; }
+  else if (v === "side") { C.yaw = 0; C.pitch = 0.08; }
+  else if (v === "top") { C.yaw = -Math.PI / 2; C.pitch = 1.55; }
+  else if (v === "iso") { C.yaw = Math.PI / 4; C.pitch = 0.4; }
+  else return fitView();
+  requestDraw();
+}
+
+// ------------------------------------------------------------------ rendering
+let drawQueued = false;
+function requestDraw() { if (!drawQueued) { drawQueued = true; requestAnimationFrame(draw); } }
+
+function cameraMatrices() {
+  const dpr = window.devicePixelRatio || 1;
+  const w = Math.max(1, Math.round(canvas.clientWidth * dpr)), h = Math.max(1, Math.round(canvas.clientHeight * dpr));
+  if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
+  const C = S.cam;
+  const eye = add(C.target, scale([Math.cos(C.pitch) * Math.cos(C.yaw), Math.cos(C.pitch) * Math.sin(C.yaw), Math.sin(C.pitch)], C.dist));
+  const near = Math.max(0.001, C.dist * 0.01), far = C.dist * 50 + S.sceneRadius * 10;
+  const P = M4.persp(45 * Math.PI / 180, w / h, near, far);
+  const V = M4.lookAt(eye, C.target, [0, 0, 1]);
+  return { VP: M4.mul(P, V), eye, w, h };
+}
+
+function draw() {
+  drawQueued = false;
+  if (!gl) return;
+  const { VP, eye, w, h } = cameraMatrices();
+  gl.viewport(0, 0, w, h);
+  gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+  const C = S.cam;
+  const light = norm([Math.cos(C.yaw + 0.6) * 0.8, Math.sin(C.yaw + 0.6) * 0.8, 0.9]);
+
+  if (S.grid && gridGpu) {
+    gl.useProgram(LPROG.p);
+    gl.uniformMatrix4fv(LPROG.u.uVP, false, VP); gl.uniformMatrix4fv(LPROG.u.uModel, false, Dava.IDENTITY);
+    gl.uniform4f(LPROG.u.uColor, 0.32, 0.35, 0.40, 1);
+    gl.bindVertexArray(gridGpu.vao); gl.drawArrays(gl.LINES, 0, gridGpu.count);
+    gl.bindVertexArray(axesGpu.vao);
+    [[0.9, 0.3, 0.3], [0.3, 0.85, 0.3], [0.35, 0.5, 1]].forEach((c, i) => { gl.uniform4f(LPROG.u.uColor, c[0], c[1], c[2], 1); gl.drawArrays(gl.LINES, i * 2, 2); });
+  }
+
+  gl.useProgram(PROG.p);
+  const U = PROG.u;
+  gl.uniformMatrix4fv(U.uVP, false, VP);
+  gl.uniform3fv(U.uEye, eye); gl.uniform3fv(U.uLight, light);
+  gl.uniform1i(U.uTex, 0);
+  if (S.cull) gl.enable(gl.CULL_FACE); else gl.disable(gl.CULL_FACE);
+  gl.cullFace(gl.BACK); gl.frontFace(gl.CCW);  // verified on game files: winding agrees with normals (CCW)
+  gl.enable(gl.POLYGON_OFFSET_FILL); gl.polygonOffset(1, 1);
+  for (const it of S.items) {
+    const g = gpuMesh(it.mesh);
+    gl.uniformMatrix4fv(U.uModel, false, it.entity ? it.entity.world : Dava.IDENTITY);
+    let hasTex = 0, alphaTest = 0, thr = 0.3;
+    if (it.mat) {
+      alphaTest = it.mat.alphaTest ? 1 : 0; thr = it.mat.threshold;
+      if (S.textures && it.mat.file && g.hasUv) {
+        const t = loadTexture(it.mat.file);
+        if (t.tex) { gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, t.tex); hasTex = 1; }
+      }
+    }
+    if (!hasTex) alphaTest = 0;
+    gl.uniform1i(U.uHasTex, hasTex); gl.uniform1i(U.uAlphaTest, alphaTest); gl.uniform1f(U.uThreshold, thr);
+    gl.uniform1i(U.uHasNrm, g.hasNrm ? 1 : 0);
+    gl.uniform3fv(U.uColor, it.mat ? [0.62, 0.64, 0.6] : [0.7, 0.7, 0.72]);
+    gl.uniform1f(U.uHi, S.selected && it.entity && isUnder(it.entity, S.selected) ? 1 : 0);
+    gl.bindVertexArray(g.vao);
+    gl.drawElements(g.mode, g.count, g.itype, 0);
+  }
+  gl.disable(gl.POLYGON_OFFSET_FILL);
+  if (S.wire) {
+    gl.useProgram(LPROG.p);
+    gl.uniformMatrix4fv(LPROG.u.uVP, false, VP);
+    gl.uniform4f(LPROG.u.uColor, 0.05, 0.05, 0.06, 0.9);
+    for (const it of S.items) {
+      if (it.mesh.prim !== 1) continue;
+      const wv = gpuWire(it.mesh, gpuMesh(it.mesh));
+      gl.uniformMatrix4fv(LPROG.u.uModel, false, it.entity ? it.entity.world : Dava.IDENTITY);
+      gl.bindVertexArray(wv.vao); gl.drawElements(gl.LINES, wv.count, gl.UNSIGNED_INT, 0);
+    }
+  }
+  gl.bindVertexArray(null);
+}
+function isUnder(e, anc) { for (let x = e; x; x = x.parent) if (x === anc) return true; return false; }
+
+// ------------------------------------------------------------------ picking
+function pick(cx, cy) {
+  if (!S.items.length) return null;
+  const { VP, w, h } = cameraMatrices();
+  if (!pickFbo || pickFbo.w !== w || pickFbo.h !== h) {
+    if (pickFbo) { gl.deleteFramebuffer(pickFbo.fb); gl.deleteTexture(pickFbo.tex); gl.deleteRenderbuffer(pickFbo.rb); }
+    const fb = gl.createFramebuffer(), tex = gl.createTexture(), rb = gl.createRenderbuffer();
+    gl.bindTexture(gl.TEXTURE_2D, tex); gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+    gl.bindRenderbuffer(gl.RENDERBUFFER, rb); gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT24, w, h);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
+    gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, rb);
+    pickFbo = { fb, tex, rb, w, h };
+  }
+  gl.bindFramebuffer(gl.FRAMEBUFFER, pickFbo.fb);
+  gl.viewport(0, 0, w, h); gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+  gl.useProgram(LPROG.p); gl.uniformMatrix4fv(LPROG.u.uVP, false, VP);
+  if (S.cull) gl.enable(gl.CULL_FACE); else gl.disable(gl.CULL_FACE);
+  S.items.forEach((it, i) => {
+    const id = i + 1, g = gpuMesh(it.mesh);
+    gl.uniform4f(LPROG.u.uColor, (id & 255) / 255, ((id >> 8) & 255) / 255, ((id >> 16) & 255) / 255, 1);
+    gl.uniformMatrix4fv(LPROG.u.uModel, false, it.entity ? it.entity.world : Dava.IDENTITY);
+    gl.bindVertexArray(g.vao); gl.drawElements(g.mode, g.count, g.itype, 0);
+  });
+  const dpr = window.devicePixelRatio || 1, px = new Uint8Array(4);
+  gl.readPixels(Math.round(cx * dpr), Math.round(h - cy * dpr), 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.bindVertexArray(null);
+  gl.clearColor(0.16, 0.18, 0.21, 1);
+  requestDraw();
+  const id = px[0] | (px[1] << 8) | (px[2] << 16);
+  return id ? S.items[id - 1] : null;
+}
+
+// ------------------------------------------------------------------ UI: tree / props / materials
+function entityCounts(e) {
+  let tris = 0;
+  for (const b of e.batches) {
+    if (S.lod !== "all" && b.lod !== S.lod && b.lod !== -1) continue;
+    const m = S.scene.meshes.get(b.datasource); if (m) tris += m.triangles;
+  }
+  return tris;
+}
+
+function renderTree() {
+  const sc = S.scene, el = $("tree");
+  if (!sc) { el.innerHTML = '<div class="hint">Файлы не загружены</div>'; return; }
+  if (!sc.roots.length) {
+    el.innerHTML = `<div class="hint">Только геометрия (.scg без .sc2): ${sc.meshes.size} полигон-групп</div>`;
+    $("treeStats").textContent = ""; return;
+  }
+  const filter = $("treeFilter").value.trim().toLowerCase();
+  const html = [];
+  const rec = e => {
+    const tris = entityCounts(e);
+    const svc = sc.isService(e, null) || (e.batches.length && e.batches.every(b => sc.isService(e, b)));
+    const kids = e.children.length;
+    html.push(`<li data-uid="${e.uid}"><div class="row${S.selected === e ? " sel" : ""}" data-uid="${e.uid}">` +
+      `<span class="tw">${kids ? "▾" : ""}</span><input type="checkbox" data-uid="${e.uid}"${e.visible ? " checked" : ""}>` +
+      `<span class="nm${svc ? " svc" : ""}">${esc(e.name)}</span>` + (tris ? ` <span class="badge">${fmtN(tris)}△</span>` : "") + `</div>`);
+    if (kids) { html.push("<ul>"); e.children.forEach(rec); html.push("</ul>"); }
+    html.push("</li>");
+  };
+  html.push("<ul>"); sc.roots.forEach(rec); html.push("</ul>");
+  el.innerHTML = html.join("");
+  S.uidMap = new Map([...sc.entities()].map(e => [String(e.uid), e]));
+  if (filter) {
+    for (const li of el.querySelectorAll("li")) {
+      const e = S.uidMap.get(li.dataset.uid);
+      const match = [...e.walk()].some(x => x.name.toLowerCase().includes(filter));
+      li.classList.toggle("hidden-row", !match);
+    }
+  }
+  $("treeStats").textContent = `(${[...sc.entities()].length} узлов)`;
+}
+
+function texStatusHtml(mi) {
+  if (!mi || !mi.texPath) return '<span class="hint">без текстуры</span>';
+  if (!mi.file) return `<span class="bad" title="положите файл рядом или откройте папку целиком">✗ не найдена</span>`;
+  const t = S.texCache.get(mi.file.path);
+  if (t && t.error) return `<span class="bad">✗ ${esc(t.error)}</span>`;
+  return `<span class="ok">✓ ${esc(mi.file.path)}</span>${t && t.format ? ` <span class="hint">${esc(t.format)}${t.img ? ` ${t.img.width}×${t.img.height}` : ""}</span>` : ""}`;
+}
+
+function shortJSON(v) {
+  return JSON.stringify(Dava.toJSONSafe(v), (k, x) => Array.isArray(x) && x.length > 24 && typeof x[0] !== "object" ? `[${x.length} значений]` : x, 1);
+}
+
+function renderProps() {
+  const el = $("props"), e = S.selected, sc = S.scene;
+  if (!e || !sc) { el.innerHTML = '<div class="hint">Щёлкните по детали в окне или в дереве</div>'; return; }
+  const W = e.world;
+  const rows = [
+    ["Имя", esc(e.name)], ["Путь", esc(e.path)],
+    ["Позиция (мир)", fmt3([W[12], W[13], W[14]])],
+    ["Позиция (лок.)", fmt3([e.local[12], e.local[13], e.local[14]])],
+    ["Компоненты", esc(Dava.components(e.raw).map(c => c["comp.typename"]).join(", "))],
+  ];
+  let h = "<table>" + rows.map(([a, b]) => `<tr><th>${a}</th><td>${b}</td></tr>`).join("") + "</table>";
+  if (e.batches.length) {
+    h += `<table><tr><th>LOD</th><th>Меш</th><th>Материал / текстура</th></tr>`;
+    for (const b of e.batches) {
+      const m = sc.meshes.get(b.datasource), mi = materialInfo(b.material);
+      const mesh = m ? `${fmtN(m.vcount)} верш., ${fmtN(m.triangles || m.lines)} ${m.prim === 10 ? "лин." : "△"}<br><span class="hint">${m.attrNames.join(" ")} (${m.stride} Б)</span>` : `<span class="bad">нет данных ${esc(b.datasource)}</span>`;
+      h += `<tr><td>${b.lod}${b.switch >= 0 ? "/s" + b.switch : ""}</td><td>${mesh}</td><td>${esc(mi.name)}${mi.alphaTest ? " <span class=hint>(alphatest)</span>" : ""}<br>${texStatusHtml(mi)}</td></tr>`;
+    }
+    h += "</table>";
+  }
+  const raw = Object.assign({}, e.raw); delete raw["#hierarchy"];
+  h += `<details><summary>Сырые данные (KeyedArchive)</summary><pre>${esc(shortJSON(raw))}</pre></details>`;
+  el.innerHTML = h;
+}
+
+function renderMaterials() {
+  const el = $("materials"), sc = S.scene;
+  if (!sc) { el.innerHTML = ""; return; }
+  const used = new Map();
+  for (const it of S.items) if (it.mat) { const k = it.mat.name; if (!used.has(k)) used.set(k, it.mat); }
+  let found = 0, total = 0;
+  const rows = [];
+  for (const mi of used.values()) {
+    if (mi.texPath) { total++; if (mi.file) found++; }
+    const other = Object.entries(mi.textures).filter(([k]) => !["albedo", "baseColorMap"].includes(k)).map(([k, v]) => `${k}: ${v}`).join("\n");
+    rows.push(`<tr><td title="${esc(mi.fx)}">${esc(mi.name)}</td><td><span title="${esc(other)}">${esc(mi.texPath || "—")}</span><br>${texStatusHtml(mi)}</td></tr>`);
+  }
+  el.innerHTML = rows.length ? `<table>${rows.join("")}</table>` + (found < total ? `<div class="hint">Не хватает текстур? Откройте папку модели целиком (с подпапкой images).</div>` : "") : '<div class="hint">нет</div>';
+  $("texStats").textContent = total ? `(${found}/${total})` : "";
+}
+
+function updateStatus() {
+  const sc = S.scene;
+  if (!sc) { $("status").textContent = ""; return; }
+  let tris = 0, verts = 0;
+  for (const it of S.items) { tris += it.mesh.triangles; verts += it.mesh.vcount; }
+  const parts = [];
+  if (sc.sc2) parts.push(`SC2 v${sc.sc2.version} (${sc.sc2.layout === "modern" ? "новый формат" : "старый формат"})`);
+  if (sc.scg) parts.push(`SCG v${sc.scg.version}`);
+  parts.push(`полигон-групп ${sc.meshes.size}`, `материалов ${sc.materials.size}`);
+  $("status").textContent = `${S.modelPath}\n${parts.join(" · ")}\nна экране: ${S.items.length} батчей, ${fmtN(tris)} треуг., ${fmtN(verts)} вершин`;
+}
+
+function select(e, focus = false) {
+  S.selected = e;
+  renderProps();
+  for (const r of $("tree").querySelectorAll(".row.sel")) r.classList.remove("sel");
+  if (e) {
+    const row = $("tree").querySelector(`.row[data-uid="${e.uid}"]`);
+    if (row) { row.classList.add("sel"); row.scrollIntoView({ block: "nearest" }); }
+    if (focus) { const its = S.items.filter(it => it.entity && isUnder(it.entity, e)); if (its.length) fitView(its); }
+  }
+  requestDraw();
+}
+
+// ------------------------------------------------------------------ export
+function exportItems() { return S.items.filter(it => it.mesh.prim === 1); }
+
+async function imagePNG(img, opaque) {
+  const c = document.createElement("canvas"); c.width = img.width; c.height = img.height;
+  const d = new ImageData(new Uint8ClampedArray(img.data), img.width, img.height);
+  if (opaque) for (let i = 3; i < d.data.length; i += 4) d.data[i] = 255;
+  c.getContext("2d").putImageData(d, 0, 0);
+  const blob = await new Promise(r => c.toBlob(r, "image/png"));
+  return new Uint8Array(await blob.arrayBuffer());
+}
+
+async function waitTextures(items) {
+  const ps = [];
+  for (const it of items) if (it.mat && it.mat.file) loadTexture(it.mat.file);
+  for (let k = 0; k < 600; k++) { if (![...S.texCache.values()].some(t => t.pending)) break; await new Promise(r => setTimeout(r, 50)); }
+}
+
+function sanitize(arr) { for (let i = 0; i < arr.length; i++) if (!Number.isFinite(arr[i])) arr[i] = 0; return arr; }
+
+async function exportGLB(opts = {}) {
+  const sc = S.scene; if (!sc) return toast("Сначала откройте модель", true);
+  const items = exportItems(); if (!items.length) return toast("Нечего экспортировать", true);
+  toast("Готовлю GLB…");
+  if (S.textures) await waitTextures(items);
+  const bin = []; let binLen = 0;
+  const views = [], accessors = [], meshes = [], materials = [], textures = [], images = [], nodes = [];
+  const pushView = (u8, target) => {
+    const pad = (4 - (binLen % 4)) % 4; if (pad) { bin.push(new Uint8Array(pad)); binLen += pad; }
+    views.push(Object.assign({ buffer: 0, byteOffset: binLen, byteLength: u8.byteLength }, target ? { target } : {}));
+    bin.push(new Uint8Array(u8.buffer, u8.byteOffset, u8.byteLength)); binLen += u8.byteLength;
+    return views.length - 1;
+  };
+  const pushAcc = (arr, type, comp, target, minmax) => {
+    const a = { bufferView: pushView(arr, target), componentType: comp, count: arr.length / ({ VEC3: 3, VEC2: 2, SCALAR: 1 }[type]), type };
+    if (minmax) Object.assign(a, minmax);
+    accessors.push(a); return accessors.length - 1;
+  };
+  const matIdx = new Map(), imgIdx = new Map();
+  async function material(mi) {
+    const key = mi ? mi.name : "__none";
+    if (matIdx.has(key)) return matIdx.get(key);
+    const m = { name: key, doubleSided: true, pbrMetallicRoughness: { metallicFactor: 0, roughnessFactor: 0.8 } };
+    if (mi && S.textures && mi.file) {
+      const t = S.texCache.get(mi.file.path);
+      if (t && t.img) {
+        const ik = mi.file.path + (mi.alphaTest ? "#a" : "#o");
+        if (!imgIdx.has(ik)) {
+          const png = await imagePNG(t.img, !mi.alphaTest);
+          images.push({ name: Dava.baseOf(mi.file.path).replace(/\..*$/, ""), mimeType: "image/png", bufferView: pushView(png) });
+          textures.push({ source: images.length - 1, sampler: 0 });
+          imgIdx.set(ik, textures.length - 1);
+        }
+        m.pbrMetallicRoughness.baseColorTexture = { index: imgIdx.get(ik) };
+        if (mi.alphaTest) { m.alphaMode = "MASK"; m.alphaCutoff = mi.threshold; }
+      }
+    }
+    materials.push(m); matIdx.set(key, materials.length - 1);
+    return materials.length - 1;
+  }
+  const primCache = new Map();
+  async function primitive(it) {
+    const ck = it.mesh.id + "|" + (it.mat ? it.mat.name : "");
+    if (primCache.has(ck)) return primCache.get(ck);
+    const m = it.mesh, attrs = {};
+    const pos = sanitize(m.attr("position"));
+    const mn = [Infinity, Infinity, Infinity], mx = [-Infinity, -Infinity, -Infinity];
+    for (let i = 0; i < pos.length; i++) { const c = i % 3; mn[c] = Math.min(mn[c], pos[i]); mx[c] = Math.max(mx[c], pos[i]); }
+    attrs.POSITION = pushAcc(pos, "VEC3", 5126, 34962, { min: mn, max: mx });
+    const nrm = m.attr("normal");
+    if (nrm) {
+      sanitize(nrm);
+      for (let i = 0; i < nrm.length; i += 3) { const l = Math.hypot(nrm[i], nrm[i + 1], nrm[i + 2]); if (l > 1e-6) { nrm[i] /= l; nrm[i + 1] /= l; nrm[i + 2] /= l; } else { nrm[i] = 0; nrm[i + 1] = 0; nrm[i + 2] = 1; } }
+      attrs.NORMAL = pushAcc(nrm, "VEC3", 5126, 34962);
+    }
+    const uv = m.attr("uv0"); if (uv) attrs.TEXCOORD_0 = pushAcc(sanitize(uv), "VEC2", 5126, 34962);
+    // DAVA winding is counter-clockwise like glTF (checked against vertex normals)
+    const idx = Uint32Array.from(m.indices);
+    const p = { attributes: attrs, indices: pushAcc(idx, "SCALAR", 5125, 34963), material: await material(it.mat), mode: 4 };
+    primCache.set(ck, p);
+    return p;
+  }
+  // hierarchy: one glTF node per DAVA entity that (indirectly) has exported geometry
+  const byEntity = new Map(), loose = [];
+  for (const it of items) { if (it.entity) { if (!byEntity.has(it.entity)) byEntity.set(it.entity, []); byEntity.get(it.entity).push(it); } else loose.push(it); }
+  const needed = new Set();
+  for (const e of byEntity.keys()) for (let x = e; x; x = x.parent) needed.add(x);
+  async function buildNode(e) {
+    const node = { name: e.name, matrix: e.local.map(Number) };
+    if (node.matrix.every((v, i) => Math.abs(v - Dava.IDENTITY[i]) < 1e-9)) delete node.matrix;
+    nodes.push(node); const ni = nodes.length - 1;
+    const its = byEntity.get(e);
+    if (its) { const prims = []; for (const it of its) prims.push(await primitive(it)); meshes.push({ name: e.name, primitives: prims }); node.mesh = meshes.length - 1; }
+    const kids = [];
+    for (const c of e.children) if (needed.has(c)) kids.push(await buildNode(c));
+    if (kids.length) node.children = kids;
+    return ni;
+  }
+  const rootKids = [];
+  for (const r of sc.roots) if (needed.has(r)) rootKids.push(await buildNode(r));
+  for (const it of loose) { meshes.push({ name: "PolygonGroup_" + it.mesh.id, primitives: [await primitive(it)] }); nodes.push({ name: "PolygonGroup_" + it.mesh.id, mesh: meshes.length - 1 }); rootKids.push(nodes.length - 1); }
+  nodes.push({ name: stemName(S.modelPath) || "model", rotation: [-Math.SQRT1_2, 0, 0, Math.SQRT1_2], children: rootKids });
+  const gltf = {
+    asset: { version: "2.0", generator: "scgviewer (mods-to-blitz-legacy)" },
+    scene: 0, scenes: [{ name: stemName(S.modelPath), nodes: [nodes.length - 1] }],
+    nodes, meshes, materials, accessors, bufferViews: views, buffers: [{ byteLength: 0 }],
+  };
+  if (textures.length) { gltf.textures = textures; gltf.images = images; gltf.samplers = [{ magFilter: 9729, minFilter: 9987, wrapS: 10497, wrapT: 10497 }]; }
+  const pad = (4 - (binLen % 4)) % 4; if (pad) { bin.push(new Uint8Array(pad)); binLen += pad; }
+  gltf.buffers[0].byteLength = binLen;
+  let json = new TextEncoder().encode(JSON.stringify(gltf));
+  const jpad = (4 - (json.length % 4)) % 4;
+  if (jpad) { const j2 = new Uint8Array(json.length + jpad).fill(0x20); j2.set(json); json = j2; }
+  const total = 12 + 8 + json.length + 8 + binLen;
+  const out = new Uint8Array(total), dv = new DataView(out.buffer);
+  dv.setUint32(0, 0x46546C67, true); dv.setUint32(4, 2, true); dv.setUint32(8, total, true);
+  dv.setUint32(12, json.length, true); dv.setUint32(16, 0x4E4F534A, true); out.set(json, 20);
+  let o = 20 + json.length;
+  dv.setUint32(o, binLen, true); dv.setUint32(o + 4, 0x004E4942, true); o += 8;
+  for (const b of bin) { out.set(b, o); o += b.length; }
+  if (opts.bytes) return out;
+  download(stemName(S.modelPath) + (S.lod === "all" ? "" : "_lod" + S.lod) + ".glb", out, "model/gltf-binary");
+  toast(`GLB: ${meshes.length} мешей, ${images.length} текстур`);
+}
+
+function exportOBJ() {
+  const sc = S.scene; if (!sc) return toast("Сначала откройте модель", true);
+  const items = exportItems(); if (!items.length) return toast("Нечего экспортировать", true);
+  const name = stemName(S.modelPath);
+  const obj = [`# ${S.modelPath} — exported by scgviewer (Y-up)`, `mtllib ${name}.mtl`], mtl = [], mats = new Set();
+  let vBase = 1;
+  items.forEach((it, k) => {
+    const W = it.entity ? it.entity.world : Dava.IDENTITY, m = it.mesh;
+    const pos = m.attr("position"), nrm = m.attr("normal"), uv = m.attr("uv0");
+    obj.push(`o ${(it.entity ? it.entity.name : "pg") + "_" + k}`);
+    for (let i = 0; i < m.vcount; i++) {
+      const p = Dava.transformPoint(W, pos[3 * i], pos[3 * i + 1], pos[3 * i + 2]);
+      obj.push(`v ${p[0].toFixed(5)} ${p[2].toFixed(5)} ${(-p[1]).toFixed(5)}`);
+    }
+    if (uv) for (let i = 0; i < m.vcount; i++) obj.push(`vt ${(uv[2 * i] || 0).toFixed(5)} ${(1 - (uv[2 * i + 1] || 0)).toFixed(5)}`);
+    if (nrm) for (let i = 0; i < m.vcount; i++) {
+      const x = nrm[3 * i] || 0, y = nrm[3 * i + 1] || 0, z = nrm[3 * i + 2] || 0;
+      const n = [x * W[0] + y * W[4] + z * W[8], x * W[1] + y * W[5] + z * W[9], x * W[2] + y * W[6] + z * W[10]];
+      obj.push(`vn ${n[0].toFixed(4)} ${n[2].toFixed(4)} ${(-n[1]).toFixed(4)}`);
+    }
+    const mn = (it.mat ? it.mat.name : "default").replace(/\s+/g, "_");
+    if (!mats.has(mn)) {
+      mats.add(mn); mtl.push(`newmtl ${mn}`, "Kd 0.8 0.8 0.8");
+      if (it.mat && it.mat.file) mtl.push(`map_Kd ${Dava.baseOf(it.mat.file.path).replace(/\.(dds|pvr|png|webp|jpg)(\.dvpl)?$/i, ".png").replace(/\.dx11/i, "")}`);
+      mtl.push("");
+    }
+    obj.push(`usemtl ${mn}`);
+    const f = i => { const a = vBase + i; return uv && nrm ? `${a}/${a}/${a}` : uv ? `${a}/${a}` : nrm ? `${a}//${a}` : `${a}`; };
+    for (let t = 0; t + 2 < m.indices.length; t += 3) obj.push(`f ${f(m.indices[t])} ${f(m.indices[t + 1])} ${f(m.indices[t + 2])}`);
+    vBase += m.vcount;
+  });
+  download(name + ".obj", obj.join("\n") + "\n", "text/plain");
+  setTimeout(() => download(name + ".mtl", mtl.join("\n"), "text/plain"), 300);
+}
+
+function exportJSON() {
+  const sc = S.scene; if (!sc) return toast("Сначала откройте модель", true);
+  const src = sc.sc2 || sc.scg;
+  download(stemName(S.modelPath) + (sc.sc2 ? ".sc2" : ".scg") + ".json", JSON.stringify(Dava.toJSONSafe(src), null, 1), "application/json");
+}
+
+// ------------------------------------------------------------------ input
+function collectDrop(dt) {
+  const out = [];
+  const walk = (entry, prefix) => new Promise(resolve => {
+    if (entry.isFile) entry.file(f => { out.push({ path: prefix + f.name, handle: f }); resolve(); }, () => resolve());
+    else if (entry.isDirectory) {
+      const rd = entry.createReader(), all = [];
+      const next = () => rd.readEntries(async ents => {
+        if (!ents.length) { for (const e of all) await walk(e, prefix + entry.name + "/"); resolve(); }
+        else { all.push(...ents); next(); }
+      }, () => resolve());
+      next();
+    } else resolve();
+  });
+  const entries = [...dt.items].map(i => i.webkitGetAsEntry && i.webkitGetAsEntry()).filter(Boolean);
+  if (!entries.length) return Promise.resolve([...dt.files].map(f => ({ path: f.name, handle: f })));
+  return Promise.all(entries.map(e => walk(e, ""))).then(() => out);
+}
+
+function bindUI() {
+  $("btnFiles").onclick = () => $("inFiles").click();
+  $("btnFolder").onclick = () => $("inFolder").click();
+  $("inFiles").onchange = e => { addFiles([...e.target.files].map(f => ({ path: f.name, handle: f }))); e.target.value = ""; };
+  $("inFolder").onchange = e => { addFiles([...e.target.files].map(f => ({ path: f.webkitRelativePath || f.name, handle: f }))); e.target.value = ""; };
+  $("modelSelect").onchange = e => { if (e.target.value) openModel(e.target.value); };
+  $("lodSelect").onchange = e => { S.lod = e.target.value === "all" ? "all" : +e.target.value; rebuildItems(); renderTree(); renderMaterials(); renderProps(); };
+  const opt = (id, key, after) => { $(id).onchange = e => { S[key] = e.target.checked; if (after) after(); requestDraw(); }; };
+  opt("optTextures", "textures"); opt("optWire", "wire"); opt("optGrid", "grid"); opt("optCull", "cull");
+  opt("optService", "service", () => { rebuildItems(); renderMaterials(); });
+  $("btnGLB").onclick = () => exportGLB().catch(e => toast("Ошибка экспорта: " + e.message, true));
+  $("btnOBJ").onclick = exportOBJ; $("btnJSON").onclick = exportJSON;
+  $("btnShot").onclick = () => { draw(); canvas.toBlob(b => download(stemName(S.modelPath || "scene") + ".png", b)); };
+  $("btnHelp").onclick = () => ($("help").hidden = false);
+  $("helpClose").onclick = () => ($("help").hidden = true);
+  $("help").onclick = e => { if (e.target.id === "help") $("help").hidden = true; };
+  for (const b of document.querySelectorAll("#views button")) b.onclick = () => setView(b.dataset.view);
+  $("btnAllOn").onclick = () => { if (!S.scene) return; for (const e of S.scene.entities()) e.visible = true; renderTree(); rebuildItems(); };
+  $("btnAllOff").onclick = () => { if (!S.scene) return; for (const e of S.scene.entities()) e.visible = false; renderTree(); rebuildItems(); };
+  $("treeFilter").oninput = () => renderTree();
+  $("tree").addEventListener("click", e => {
+    const uid = e.target.dataset.uid; if (!uid || !S.uidMap) return;
+    const ent = S.uidMap.get(uid);
+    if (e.target.type === "checkbox") { ent.visible = e.target.checked; rebuildItems(); renderMaterials(); return; }
+    if (e.target.classList.contains("tw")) { const ul = e.target.closest("li").querySelector("ul"); if (ul) { ul.hidden = !ul.hidden; e.target.textContent = ul.hidden ? "▸" : "▾"; } return; }
+    select(ent);
+  });
+  $("tree").addEventListener("dblclick", e => { const row = e.target.closest(".row"); if (row && S.uidMap) select(S.uidMap.get(row.dataset.uid), true); });
+
+  // drag & drop anywhere
+  const drop = $("drop");
+  window.addEventListener("dragover", e => { e.preventDefault(); drop.classList.add("over"); });
+  window.addEventListener("dragleave", e => { if (e.relatedTarget === null) drop.classList.remove("over"); });
+  window.addEventListener("drop", async e => { e.preventDefault(); drop.classList.remove("over"); addFiles(await collectDrop(e.dataTransfer)); });
+
+  // camera
+  let drag = null;
+  canvas.addEventListener("contextmenu", e => e.preventDefault());
+  canvas.addEventListener("pointerdown", e => { canvas.setPointerCapture(e.pointerId); drag = { x: e.clientX, y: e.clientY, sx: e.clientX, sy: e.clientY, pan: e.button === 2 || e.button === 1 || e.shiftKey }; });
+  canvas.addEventListener("pointermove", e => {
+    if (!drag) return;
+    const dx = e.clientX - drag.x, dy = e.clientY - drag.y; drag.x = e.clientX; drag.y = e.clientY;
+    const C = S.cam;
+    if (drag.pan) {
+      const f = C.dist * 0.0018;
+      const right = [-Math.sin(C.yaw), Math.cos(C.yaw), 0];
+      const up = cross(norm([Math.cos(C.pitch) * Math.cos(C.yaw), Math.cos(C.pitch) * Math.sin(C.yaw), Math.sin(C.pitch)]), right);
+      C.target = add(C.target, add(scale(right, -dx * f), scale(up, -dy * f)));
+    } else { C.yaw -= dx * 0.008; C.pitch = Math.max(-1.55, Math.min(1.55, C.pitch + dy * 0.008)); }
+    requestDraw();
+  });
+  canvas.addEventListener("pointerup", e => {
+    if (drag && Math.hypot(e.clientX - drag.sx, e.clientY - drag.sy) < 4 && e.button === 0) {
+      const r = canvas.getBoundingClientRect(), it = pick(e.clientX - r.left, e.clientY - r.top);
+      select(it && it.entity ? it.entity : null);
+    }
+    drag = null;
+  });
+  canvas.addEventListener("dblclick", e => {
+    const r = canvas.getBoundingClientRect(), it = pick(e.clientX - r.left, e.clientY - r.top);
+    if (it && it.entity) select(it.entity, true); else fitView();
+  });
+  canvas.addEventListener("wheel", e => { e.preventDefault(); S.cam.dist *= Math.exp(e.deltaY * 0.0012); requestDraw(); }, { passive: false });
+  window.addEventListener("resize", requestDraw);
+  window.addEventListener("keydown", e => {
+    if (e.target.tagName === "INPUT" && e.target.type !== "checkbox") return;
+    if (e.key === "f" || e.key === "F" || e.key === "а" || e.key === "А") fitView();
+    else if (e.key === "w" || e.key === "ц") { $("optWire").click(); }
+    else if (e.key === "t" || e.key === "е") { $("optTextures").click(); }
+    else if (e.key === "Escape") { select(null); $("help").hidden = true; }
+  });
+}
+
+// ------------------------------------------------------------------ start
+if (initGL()) { buildGrid(5); requestDraw(); }
+bindUI();
+window.SCGViewer = { S, openModel, addFiles, exportGLB, setView, select };
+// ?load=a.sc2,b.scg,images/x.dds  (relative URLs; handy for a local web server)
+const q = new URLSearchParams(location.search).get("load");
+if (q) addFiles(q.split(",").filter(Boolean).map(u => ({ path: decodeURIComponent(u.split("?")[0]), handle: u })));
+})();
+
+</script>
+</body>
+</html>
